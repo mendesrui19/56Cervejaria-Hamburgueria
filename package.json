@@ -1,0 +1,36 @@
+{
+  "name": "hamburgaria",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3056",
+    "build": "next build",
+    "start": "next start -p 3056",
+    "lint": "next lint",
+    "db:push": "drizzle-kit push",
+    "db:setup": "tsx scripts/db-setup.ts"
+  },
+  "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.2",
+    "gsap": "^3.15.0",
+    "next": "^16.2.10",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "@types/uuid": "^10.0.0",
+    "autoprefixer": "^10.4.21",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.1",
+    "typescript": "^5.8.3"
+  }
+}

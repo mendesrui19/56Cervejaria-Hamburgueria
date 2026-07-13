@@ -1,0 +1,793 @@
+{
+  "categories": [
+    {
+      "id": "apetite",
+      "name": "Para Abrir o Apetite"
+    },
+    {
+      "id": "batata-especial",
+      "name": "Batata Especial"
+    },
+    {
+      "id": "hamburguer",
+      "name": "Hambúrguer",
+      "note": "Batata frita NÃO incluída. Opção de carne de vaca ou frango. Escolher pão: Bolo do Caco ou Pão Normal."
+    },
+    {
+      "id": "acompanhamentos",
+      "name": "Acompanhamentos",
+      "note": "Extras para adicionar ao pedido principal."
+    },
+    {
+      "id": "snacks",
+      "name": "Snacks"
+    },
+    {
+      "id": "sobremesas",
+      "name": "Sobremesas"
+    },
+    {
+      "id": "bebidas",
+      "name": "Bebidas"
+    },
+    {
+      "id": "cervejas",
+      "name": "Cervejas"
+    },
+    {
+      "id": "cervejas-estrangeiras",
+      "name": "Cervejas Estrangeiras"
+    },
+    {
+      "id": "vinhos",
+      "name": "Vinhos"
+    },
+    {
+      "id": "sangrias",
+      "name": "Sangrias"
+    },
+    {
+      "id": "gins",
+      "name": "Gin's"
+    }
+  ],
+  "items": [
+    {
+      "id": "pao-alho",
+      "name": "Pão de Alho (Bolo do Caco)",
+      "price": 3.5,
+      "categoryId": "apetite",
+      "ingredients": [
+        "Pão Bolo do Caco",
+        "Manteiga de alho",
+        "Ervas aromáticas"
+      ],
+      "kitchenNotes": "Tostar o caco com manteiga de alho até dourar.",
+      "active": true
+    },
+    {
+      "id": "bolinhas-alheira",
+      "name": "Bolinhas de Alheira (6 un.)",
+      "price": 6.5,
+      "categoryId": "apetite",
+      "ingredients": [
+        "Alheira",
+        "Pão ralado",
+        "Ovo",
+        "Molho acompanhar"
+      ],
+      "kitchenNotes": "6 unidades. Fritar até dourar. Servir com molho.",
+      "active": true
+    },
+    {
+      "id": "tiras-frango",
+      "name": "Tiras de Frango (6 un.)",
+      "price": 6.5,
+      "categoryId": "apetite",
+      "ingredients": [
+        "Peito de frango",
+        "Pão ralado",
+        "Temperos",
+        "Molho acompanhar"
+      ],
+      "kitchenNotes": "6 tiras panadas. Fritar até crocante.",
+      "active": true
+    },
+    {
+      "id": "gambas-panadas",
+      "name": "Gambas Panadas (6 un.)",
+      "price": 6.5,
+      "categoryId": "apetite",
+      "ingredients": [
+        "Gambas",
+        "Pão ralado",
+        "Limão",
+        "Molho acompanhar"
+      ],
+      "kitchenNotes": "6 gambas panadas. Servir com limão.",
+      "active": true
+    },
+    {
+      "id": "sticks-mozzarella",
+      "name": "Sticks Mozzarella (6 un.)",
+      "price": 6.5,
+      "categoryId": "apetite",
+      "ingredients": [
+        "Mozzarella",
+        "Pão ralado",
+        "Molho marinara"
+      ],
+      "kitchenNotes": "6 sticks. Fritar até o queijo derreter. Molho marinara.",
+      "active": true
+    },
+    {
+      "id": "asinhas",
+      "name": "Asinhas (6 un.)",
+      "price": 6.5,
+      "categoryId": "apetite",
+      "ingredients": [
+        "Asas de frango",
+        "Temperos",
+        "Molho picante opcional"
+      ],
+      "kitchenNotes": "6 asinhas. Grelhar ou fritar conforme padrão da casa.",
+      "active": true
+    },
+    {
+      "id": "batata-cheddar-bacon",
+      "name": "Batata Cheddar e Bacon",
+      "price": 6.5,
+      "categoryId": "batata-especial",
+      "ingredients": [
+        "Batata frita",
+        "Creme de cheddar",
+        "Bacon crocante"
+      ],
+      "kitchenNotes": "Batata coberta com creme de cheddar e bacon por cima.",
+      "active": true
+    },
+    {
+      "id": "batata-alho-parmesao",
+      "name": "Batata Alho e Parmesão",
+      "price": 7,
+      "categoryId": "batata-especial",
+      "ingredients": [
+        "Batata frita",
+        "Salsa picada",
+        "Parmesão ralado",
+        "Molho de alho e parmesão"
+      ],
+      "kitchenNotes": "Finalizar com salsa, parmesão e molho de alho.",
+      "active": true
+    },
+    {
+      "id": "batata-mexicana",
+      "name": "Batata Mexicana",
+      "price": 7,
+      "categoryId": "batata-especial",
+      "ingredients": [
+        "Batata frita",
+        "Pico de gallo",
+        "Mozzarella ralada",
+        "Molho de abacate e lima"
+      ],
+      "kitchenNotes": "Pico de gallo + mozzarella + molho abacate/lima por cima.",
+      "active": true
+    },
+    {
+      "id": "burger-56",
+      "name": "56",
+      "price": 6.5,
+      "categoryId": "hamburguer",
+      "excludesFries": true,
+      "ingredients": [
+        "Hambúrguer de vaca",
+        "Cheddar",
+        "Alface",
+        "Tomate",
+        "Pickle de cebola roxa",
+        "Molho 56"
+      ],
+      "kitchenNotes": "Montar com todos os ingredientes. BATATA NÃO INCLUÍDA.",
+      "optionGroups": [
+        {
+          "id": "carne",
+          "label": "Tipo de Carne",
+          "required": true,
+          "options": [
+            {
+              "id": "vaca",
+              "label": "Vaca",
+              "default": true
+            },
+            {
+              "id": "frango",
+              "label": "Frango"
+            }
+          ]
+        },
+        {
+          "id": "pao",
+          "label": "Tipo de Pão",
+          "required": true,
+          "options": [
+            {
+              "id": "caco",
+              "label": "Bolo do Caco",
+              "default": true
+            },
+            {
+              "id": "normal",
+              "label": "Pão Normal"
+            }
+          ]
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "burger-duplo-bacon",
+      "name": "Duplo Bacon",
+      "price": 8,
+      "categoryId": "hamburguer",
+      "excludesFries": true,
+      "ingredients": [
+        "2x Hambúrguer de vaca",
+        "Cheddar",
+        "Bacon",
+        "Maionese de bacon"
+      ],
+      "kitchenNotes": "Duplo hambúrguer com bacon e maionese de bacon. BATATA NÃO INCLUÍDA.",
+      "optionGroups": [
+        {
+          "id": "carne",
+          "label": "Tipo de Carne",
+          "required": true,
+          "options": [
+            {
+              "id": "vaca",
+              "label": "Vaca",
+              "default": true
+            },
+            {
+              "id": "frango",
+              "label": "Frango"
+            }
+          ]
+        },
+        {
+          "id": "pao",
+          "label": "Tipo de Pão",
+          "required": true,
+          "options": [
+            {
+              "id": "caco",
+              "label": "Bolo do Caco",
+              "default": true
+            },
+            {
+              "id": "normal",
+              "label": "Pão Normal"
+            }
+          ]
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "burger-frango-panado",
+      "name": "Frango Panado",
+      "price": 7,
+      "categoryId": "hamburguer",
+      "excludesFries": true,
+      "ingredients": [
+        "Frango panado",
+        "Cheddar",
+        "Alface",
+        "Bacon",
+        "Molho ranch"
+      ],
+      "kitchenNotes": "Burger de frango panado. BATATA NÃO INCLUÍDA.",
+      "optionGroups": [
+        {
+          "id": "pao",
+          "label": "Tipo de Pão",
+          "required": true,
+          "options": [
+            {
+              "id": "caco",
+              "label": "Bolo do Caco",
+              "default": true
+            },
+            {
+              "id": "normal",
+              "label": "Pão Normal"
+            }
+          ]
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "burger-serrano",
+      "name": "Serrano",
+      "price": 7,
+      "categoryId": "hamburguer",
+      "excludesFries": true,
+      "ingredients": [
+        "Hambúrguer de vaca",
+        "Queijo amanteigado",
+        "Presunto",
+        "Alface",
+        "Maionese de alho"
+      ],
+      "kitchenNotes": "Com presunto e queijo amanteigado. BATATA NÃO INCLUÍDA.",
+      "optionGroups": [
+        {
+          "id": "carne",
+          "label": "Tipo de Carne",
+          "required": true,
+          "options": [
+            {
+              "id": "vaca",
+              "label": "Vaca",
+              "default": true
+            },
+            {
+              "id": "frango",
+              "label": "Frango"
+            }
+          ]
+        },
+        {
+          "id": "pao",
+          "label": "Tipo de Pão",
+          "required": true,
+          "options": [
+            {
+              "id": "caco",
+              "label": "Bolo do Caco",
+              "default": true
+            },
+            {
+              "id": "normal",
+              "label": "Pão Normal"
+            }
+          ]
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "burger-vegetariano",
+      "name": "Vegetariano",
+      "price": 7,
+      "categoryId": "hamburguer",
+      "excludesFries": true,
+      "ingredients": [
+        "Hambúrguer vegetariano",
+        "Alface",
+        "Tomate",
+        "Cenoura",
+        "Molho alho-parmesão"
+      ],
+      "kitchenNotes": "Burger vegetariano. BATATA NÃO INCLUÍDA.",
+      "optionGroups": [
+        {
+          "id": "pao",
+          "label": "Tipo de Pão",
+          "required": true,
+          "options": [
+            {
+              "id": "caco",
+              "label": "Bolo do Caco",
+              "default": true
+            },
+            {
+              "id": "normal",
+              "label": "Pão Normal"
+            }
+          ]
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "ovo",
+      "name": "Ovo",
+      "price": 1,
+      "categoryId": "acompanhamentos",
+      "isAddon": true,
+      "canBeAddon": true,
+      "ingredients": [
+        "Ovo estrelado ou mexido"
+      ],
+      "kitchenNotes": "Preparar ovo conforme pedido.",
+      "active": true
+    },
+    {
+      "id": "molho-francesinha",
+      "name": "Molho Especial Francesinha",
+      "price": 3,
+      "categoryId": "acompanhamentos",
+      "isAddon": true,
+      "canBeAddon": true,
+      "ingredients": [
+        "Molho especial francesinha"
+      ],
+      "kitchenNotes": "Molho à parte.",
+      "active": true
+    },
+    {
+      "id": "batata-frita",
+      "name": "Batata Frita (1 Dose)",
+      "price": 3.5,
+      "categoryId": "acompanhamentos",
+      "isAddon": true,
+      "canBeAddon": true,
+      "ingredients": [
+        "Batata frita"
+      ],
+      "kitchenNotes": "1 dose de batata frita normal.",
+      "active": true
+    },
+    {
+      "id": "batata-country",
+      "name": "Batata Frita Country (1 Dose)",
+      "price": 4,
+      "categoryId": "acompanhamentos",
+      "isAddon": true,
+      "canBeAddon": true,
+      "ingredients": [
+        "Batata frita country (com pele)"
+      ],
+      "kitchenNotes": "1 dose de batata country.",
+      "active": true
+    },
+    {
+      "id": "menu-infantil",
+      "name": "Menu Infantil",
+      "price": 7,
+      "categoryId": "snacks",
+      "ingredients": [
+        "Opção A: 4 tiras de frango + batata",
+        "Opção B: cheeseburger + fiambre + ketchup + batata"
+      ],
+      "kitchenNotes": "Ver opção escolhida. Inclui batata frita.",
+      "optionGroups": [
+        {
+          "id": "opcao-infantil",
+          "label": "Opção do Menu Infantil",
+          "required": true,
+          "options": [
+            {
+              "id": "tiras",
+              "label": "4 Tiras de Frango + Batata Frita",
+              "default": true
+            },
+            {
+              "id": "cheeseburger",
+              "label": "Cheeseburger (fiambre, ketchup) + Batata Frita"
+            }
+          ]
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "prego-pao",
+      "name": "Prego no Pão",
+      "price": 7,
+      "categoryId": "snacks",
+      "ingredients": [
+        "Bife da vazia (prego)",
+        "Pão Bolo do Caco",
+        "Queijo",
+        "Fiambre"
+      ],
+      "kitchenNotes": "Prego no caco com queijo e fiambre.",
+      "active": true
+    },
+    {
+      "id": "prego-prato",
+      "name": "Prego no Prato",
+      "price": 11,
+      "categoryId": "snacks",
+      "ingredients": [
+        "Bife da vazia (prego)",
+        "Ovo",
+        "Salada (alface, tomate, cenoura)",
+        "Batata frita"
+      ],
+      "kitchenNotes": "Prego com ovo, salada e batata.",
+      "active": true
+    },
+    {
+      "id": "kebab-prato",
+      "name": "Kebab no Prato",
+      "price": 10.5,
+      "categoryId": "snacks",
+      "ingredients": [
+        "Kebab de frango",
+        "Molho de iogurte",
+        "Molho samurai picante",
+        "Cebola frita",
+        "Salada de tomate",
+        "Batata frita"
+      ],
+      "kitchenNotes": "Kebab completo com ambos os molhos e batata.",
+      "active": true
+    },
+    {
+      "id": "cachorro-especial",
+      "name": "Cachorro Especial",
+      "price": 11,
+      "categoryId": "snacks",
+      "ingredients": [
+        "Salsicha cachorro",
+        "Fiambre",
+        "Queijo",
+        "Molho cocktail",
+        "Molho especial",
+        "Batata frita"
+      ],
+      "kitchenNotes": "Cachorro com todos os ingredientes e batata.",
+      "active": true
+    },
+    {
+      "id": "francesinha-especial",
+      "name": "Francesinha Especial",
+      "price": 13,
+      "categoryId": "snacks",
+      "ingredients": [
+        "Bife da vazia",
+        "Queijo",
+        "Fiambre",
+        "Chouriço",
+        "Salsicha",
+        "Ovo",
+        "Batata frita",
+        "Molho francesinha (verificar extra)"
+      ],
+      "kitchenNotes": "Montar francesinha completa. Verificar se pediram molho extra à parte.",
+      "active": true
+    },
+    {
+      "id": "doce-casa",
+      "name": "Doce da Casa",
+      "price": 4,
+      "categoryId": "sobremesas",
+      "ingredients": [
+        "Doce do dia / sobremesa da casa"
+      ],
+      "kitchenNotes": "Servir doce da casa disponível.",
+      "active": true
+    },
+    {
+      "id": "agua",
+      "name": "Água",
+      "price": 1,
+      "categoryId": "bebidas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "sumol",
+      "name": "Sumol",
+      "price": 1.8,
+      "categoryId": "bebidas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "coca-cola",
+      "name": "Coca-Cola",
+      "price": 1.8,
+      "categoryId": "bebidas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "ice-tea",
+      "name": "Ice Tea",
+      "price": 1.8,
+      "categoryId": "bebidas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "7up",
+      "name": "7UP",
+      "price": 1.8,
+      "categoryId": "bebidas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "brisa",
+      "name": "Brisa",
+      "price": 2.5,
+      "categoryId": "bebidas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "fino",
+      "name": "Fino",
+      "price": 1.3,
+      "categoryId": "cervejas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "caneca-cerveja",
+      "name": "Caneca de Cerveja",
+      "price": 2,
+      "categoryId": "cervejas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "bohemia-original",
+      "name": "Bohemia Original",
+      "price": 1.6,
+      "categoryId": "cervejas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "super-bock-sem-alcool",
+      "name": "Super Bock S/Álcool",
+      "price": 1.6,
+      "categoryId": "cervejas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "mini-super-bock",
+      "name": "Mini Super Bock",
+      "price": 1.2,
+      "categoryId": "cervejas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "bandida-do-pomar",
+      "name": "Bandida do Pomar",
+      "price": 2.5,
+      "categoryId": "cervejas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "heineken-zero",
+      "name": "Heineken Zero",
+      "price": 1.3,
+      "categoryId": "cervejas",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "erdinger",
+      "name": "Erdinger",
+      "price": 6,
+      "categoryId": "cervejas-estrangeiras",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "gulden-draak",
+      "name": "Gulden Draak",
+      "price": 6,
+      "categoryId": "cervejas-estrangeiras",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "kasteel",
+      "name": "Kasteel",
+      "price": 6,
+      "categoryId": "cervejas-estrangeiras",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "kwak",
+      "name": "Kwak",
+      "price": 6,
+      "categoryId": "cervejas-estrangeiras",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "desperados",
+      "name": "Desperados",
+      "price": 4,
+      "categoryId": "cervejas-estrangeiras",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "verde-da-casa",
+      "name": "Verde da Casa",
+      "price": 7,
+      "categoryId": "vinhos",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "almotrega",
+      "name": "Almotrega",
+      "price": 8,
+      "categoryId": "vinhos",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "sangria-maracuja",
+      "name": "Sangria Maracujá",
+      "price": 16,
+      "categoryId": "sangrias",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "sangria-frutos-vermelhos",
+      "name": "Sangria Frutos Vermelhos",
+      "price": 16,
+      "categoryId": "sangrias",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "opivm",
+      "name": "Opivm",
+      "price": 5,
+      "categoryId": "gins",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "buldog",
+      "name": "Buldog",
+      "price": 8,
+      "categoryId": "gins",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    },
+    {
+      "id": "nordes",
+      "name": "Nordés",
+      "price": 9,
+      "categoryId": "gins",
+      "ingredients": [],
+      "skipKitchen": true,
+      "active": true
+    }
+  ],
+  "updatedAt": "2026-07-12T19:21:15.317Z"
+}
