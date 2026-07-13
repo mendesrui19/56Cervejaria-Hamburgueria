@@ -6,6 +6,7 @@ interface PinScreenProps {
   title?: string;
   subtitle?: string;
   dest?: string;
+  onSuccess?: () => void | Promise<void>;
 }
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"] as const;
@@ -14,6 +15,7 @@ export function PinScreen({
   title = "Acesso Staff",
   subtitle = "Introduza o PIN de 4 dígitos",
   dest = "/",
+  onSuccess,
 }: PinScreenProps) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -36,9 +38,20 @@ export function PinScreen({
           throw new Error(data.error || "PIN incorreto");
         }
 
+        if (onSuccess) {
+          await onSuccess();
+          return;
+        }
+
         const target =
           dest.startsWith("/") && !dest.startsWith("//") ? dest : "/sistema";
-        window.location.assign(target);
+        const targetPath = target.split("?")[0];
+
+        if (window.location.pathname === targetPath) {
+          window.location.reload();
+        } else {
+          window.location.assign(target);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao validar PIN");
         setPin("");
@@ -46,17 +59,21 @@ export function PinScreen({
         setLoading(false);
       }
     },
-    [dest]
+    [dest, onSuccess]
   );
 
   function handleDigit(digit: string) {
-    if (loading || pin.length >= 4) return;
-    const next = pin + digit;
-    setPin(next);
+    if (loading) return;
+
+    setPin((current) => {
+      if (current.length >= 4) return current;
+      const next = current + digit;
+      if (next.length === 4) {
+        void submitPin(next);
+      }
+      return next;
+    });
     setError("");
-    if (next.length === 4) {
-      void submitPin(next);
-    }
   }
 
   function handleBackspace() {

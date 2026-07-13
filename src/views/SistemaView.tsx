@@ -146,6 +146,7 @@ function SistemaGate() {
         title="Acesso Staff"
         subtitle="PIN válido até ao fim do serviço (04:00)"
         dest={next ?? "/sistema"}
+        onSuccess={next ? undefined : checkSession}
       />
     );
   }
