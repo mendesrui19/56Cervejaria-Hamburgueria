@@ -21,7 +21,7 @@ export function AppHeader({
     "flex items-center justify-center min-h-[44px] px-2 -ml-1 rounded-xl text-brand-muted hover:text-brand-gold hover:bg-brand-card transition-colors touch-manipulation text-[11px] font-semibold uppercase tracking-wide";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-brand-line bg-white/95 backdrop-blur-md safe-top">
+    <header className="staff-header sticky top-0 z-50 border-b border-brand-line bg-white/95 backdrop-blur-md">
       <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-3 max-w-7xl mx-auto">
         <div className="flex items-center gap-1 sm:gap-3 min-w-0 flex-1">
           {onBack ? (

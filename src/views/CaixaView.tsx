@@ -763,7 +763,7 @@ export default function CaixaView() {
 
   if (tab === "fecho") {
     return (
-      <div className="h-dvh flex flex-col overflow-hidden">
+      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
         <AppHeader
           title="Caixa"
           subtitle="Fecho do dia"
@@ -788,7 +788,7 @@ export default function CaixaView() {
 
   if (tab === "mesas") {
     return (
-      <div className="h-dvh flex flex-col overflow-hidden">
+      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
         <AppHeader
           title="Caixa"
           subtitle="Gestão de mesas"
@@ -810,7 +810,7 @@ export default function CaixaView() {
   const showMobileDetail = !isSplit && selected !== null;
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden">
+    <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
       <AppHeader
         title="Caixa"
         subtitle={`${activeTables.length} mesa${activeTables.length !== 1 ? "s" : ""} ativa${activeTables.length !== 1 ? "s" : ""}`}

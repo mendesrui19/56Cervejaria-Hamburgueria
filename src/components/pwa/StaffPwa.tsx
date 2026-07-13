@@ -104,7 +104,7 @@ export function StaffPwa({
   return (
     <>
       {showAndroidBanner && (
-        <div className="sticky top-0 z-50 border-b border-brand-gold/20 bg-amber-50 px-3 py-2.5 safe-top">
+        <div className="sticky top-0 z-50 border-b border-brand-gold/20 bg-amber-50 px-3 py-2.5">
           <div className="flex items-center gap-2 max-w-3xl mx-auto">
             <p className="text-xs sm:text-sm text-stone-800 flex-1 min-w-0">
               Instalar <span className="font-bold">{app.shortName}</span> no
@@ -130,7 +130,7 @@ export function StaffPwa({
       )}
 
       {showIosBanner && !showAndroidBanner && (
-        <div className="sticky top-0 z-50 border-b border-brand-gold/20 bg-amber-50 px-3 py-2.5 safe-top">
+        <div className="sticky top-0 z-50 border-b border-brand-gold/20 bg-amber-50 px-3 py-2.5">
           <div className="max-w-3xl mx-auto">
             <p className="text-xs sm:text-sm text-stone-800">
               <span className="font-bold">{app.shortName} no iPhone/iPad:</span>{" "}

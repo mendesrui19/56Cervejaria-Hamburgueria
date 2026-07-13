@@ -372,7 +372,7 @@ export default function CozinhaView() {
   ];
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden">
+    <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
       <AppHeader
         title="Cozinha"
         subtitle={`${activeCount} a preparar · ${readyCount} prontos`}

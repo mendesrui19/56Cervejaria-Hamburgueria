@@ -18,7 +18,7 @@ export function ScreenHeader({
   compact = false,
 }: ScreenHeaderProps) {
   return (
-    <header className="sticky top-0 z-40 border-b border-brand-line bg-white safe-top shrink-0">
+    <header className="staff-header sticky top-0 z-40 border-b border-brand-line bg-white shrink-0">
       <div
         className={`flex items-center gap-2 shrink-0 ${
           compact ? "px-3 py-2" : "px-3 py-3"
@@ -61,7 +61,7 @@ export function ScreenPage({ children, nested = false }: ScreenPageProps) {
   return (
     <div
       className={`flex flex-col bg-brand-dark overflow-hidden ${
-        nested ? "h-full min-h-0" : "h-dvh"
+        nested ? "h-full min-h-0" : "h-full min-h-0 flex-1"
       }`}
     >
       {children}
@@ -92,7 +92,7 @@ interface ScreenFooterProps {
 export function ScreenFooter({ children, compact = false }: ScreenFooterProps) {
   return (
     <footer
-      className={`shrink-0 border-t border-brand-line bg-white/95 safe-bottom ${
+      className={`shrink-0 border-t border-brand-line bg-white/95 ${
         compact ? "p-3" : "p-4"
       }`}
     >

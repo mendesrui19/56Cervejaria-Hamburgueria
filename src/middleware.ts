@@ -42,8 +42,8 @@ export async function middleware(request: NextRequest) {
   }
 
   const loginUrl = request.nextUrl.clone();
-  loginUrl.pathname = "/acesso";
-  loginUrl.searchParams.set("dest", pathname);
+  loginUrl.pathname = "/sistema";
+  loginUrl.searchParams.set("next", pathname);
   return NextResponse.redirect(loginUrl);
 }
 

@@ -5,7 +5,7 @@ async function apiFetch(url: string, options?: RequestInit) {
 
   if (res.status === 401 && typeof window !== "undefined") {
     const dest = encodeURIComponent(window.location.pathname);
-    window.location.href = `/acesso?dest=${dest}`;
+    window.location.href = `/sistema?next=${dest}`;
     throw new Error("Sessão expirada");
   }
 
@@ -32,7 +32,7 @@ export async function logoutStaff() {
     credentials: "include",
   });
   if (typeof window !== "undefined") {
-    window.location.href = "/acesso";
+    window.location.href = "/sistema";
   }
 }
 

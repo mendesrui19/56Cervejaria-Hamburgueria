@@ -58,7 +58,7 @@ export function AdminLayout({
   children,
 }: AdminLayoutProps) {
   return (
-    <div className="min-h-dvh flex bg-brand-dark">
+    <div className="min-h-dvh flex bg-brand-dark staff-safe-screen">
       <aside className="hidden md:flex w-56 lg:w-60 shrink-0 flex-col border-r border-brand-line bg-white">
         <div className="p-4 border-b border-brand-line">
           <p className="text-[10px] uppercase tracking-widest text-brand-muted font-bold">

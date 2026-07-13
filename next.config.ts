@@ -20,19 +20,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/manifest-empregado.webmanifest",
-        headers: [
-          { key: "Content-Type", value: "application/manifest+json" },
-        ],
-      },
-      {
-        source: "/manifest-cozinha.webmanifest",
-        headers: [
-          { key: "Content-Type", value: "application/manifest+json" },
-        ],
-      },
-      {
-        source: "/manifest-caixa.webmanifest",
+        source: "/manifest-sistema.webmanifest",
         headers: [
           { key: "Content-Type", value: "application/manifest+json" },
         ],

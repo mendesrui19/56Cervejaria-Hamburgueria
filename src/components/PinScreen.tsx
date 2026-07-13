@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
 
 interface PinScreenProps {
   title?: string;
@@ -16,7 +15,6 @@ export function PinScreen({
   subtitle = "Introduza o PIN de 4 dígitos",
   dest = "/",
 }: PinScreenProps) {
-  const router = useRouter();
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,8 +36,9 @@ export function PinScreen({
           throw new Error(data.error || "PIN incorreto");
         }
 
-        router.replace(dest);
-        router.refresh();
+        const target =
+          dest.startsWith("/") && !dest.startsWith("//") ? dest : "/sistema";
+        window.location.assign(target);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao validar PIN");
         setPin("");
@@ -47,7 +46,7 @@ export function PinScreen({
         setLoading(false);
       }
     },
-    [dest, router]
+    [dest]
   );
 
   function handleDigit(digit: string) {
@@ -67,7 +66,7 @@ export function PinScreen({
   }
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center p-6 safe-top safe-bottom">
+    <div className="staff-safe-screen flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <p className="text-brand-gold text-xs font-semibold tracking-widest uppercase mb-2">
