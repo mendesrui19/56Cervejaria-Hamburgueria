@@ -83,9 +83,13 @@ export default function SistemaPage() {
         ))}
       </div>
 
-      <p className="text-brand-muted text-xs mt-8 sm:mt-10 text-center max-w-sm px-4 leading-relaxed">
+      <p className="text-brand-muted text-xs mt-8 sm:mt-10 text-center max-w-md px-4 leading-relaxed">
         Otimizado para telemóvel e tablet. PIN de staff partilhado — uma vez por
         turno, válido até às 04:00.
+        <span className="block mt-2 text-brand-gold/80">
+          Abre Empregado, Cozinha ou Caixa e instala no ecrã inicial (Android:
+          Instalar · iPhone: Partilhar → Adicionar ao Ecrã Principal).
+        </span>
       </p>
     </main>
   );
