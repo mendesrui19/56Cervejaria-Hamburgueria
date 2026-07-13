@@ -1,21 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppHeader, SegmentedControl } from "@/components/AppHeader";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ItemStatusBadge } from "@/components/StatusBadge";
 import { dismissKitchenAlert, fetchKitchen, updateItemStatus } from "@/lib/api";
-import {
-  getKitchenZoneLabel,
-  itemMatchesKitchenZone,
-  kitchenAlertMatchesZone,
-} from "@/lib/kitchen-zones";
+import { getKitchenZoneLabel } from "@/lib/kitchen-zones";
 import {
   playKitchenAlertSound,
   playNewOrderSound,
 } from "@/lib/kitchen-sound";
 import { formatWaitTime } from "@/lib/time";
-import type { KitchenTicketItem, KitchenZone } from "@/lib/types";
+import type { KitchenTicketItem } from "@/lib/types";
 import { usePolling } from "@/hooks/usePolling";
 
 interface KitchenOrder {
@@ -29,7 +25,6 @@ interface KitchenOrder {
 }
 
 type StatusFilter = "ativos" | "prontos" | "todos";
-type StationFilter = KitchenZone | "todos";
 
 function oldestPrepTime(items: KitchenTicketItem[]): string | null {
   const preparing = items.filter((i) => i.status === "em_preparacao");
@@ -41,45 +36,6 @@ function oldestPrepTime(items: KitchenTicketItem[]): string | null {
   }, preparing[0]?.sentToKitchenAt ?? "");
 
   return formatWaitTime(oldest);
-}
-
-function stationItems(
-  order: KitchenOrder,
-  station: StationFilter
-): KitchenTicketItem[] {
-  if (station === "todos") return order.items;
-  return order.items.filter((item) =>
-    itemMatchesKitchenZone(item.kitchenZone, station)
-  );
-}
-
-function alertForStation(
-  order: KitchenOrder,
-  station: StationFilter
-): boolean {
-  if (!order.kitchenAlert) return false;
-  if (station === "todos") return true;
-  return kitchenAlertMatchesZone(order.kitchenAlert, station);
-}
-
-function orderMatchesFilters(
-  order: KitchenOrder,
-  station: StationFilter,
-  status: StatusFilter
-): boolean {
-  const items = stationItems(order, station);
-  const hasAlert = alertForStation(order, station);
-
-  if (status === "ativos") {
-    if (items.some((i) => i.status === "em_preparacao")) return true;
-    return hasAlert;
-  }
-
-  if (status === "prontos") {
-    return items.length > 0 && items.every((i) => i.status === "pronto");
-  }
-
-  return items.length > 0 || hasAlert;
 }
 
 function KitchenItemCard({
@@ -184,18 +140,15 @@ function KitchenItemCard({
 
 function KitchenTicket({
   order,
-  station,
   onStatusChange,
   onDismissAlert,
 }: {
   order: KitchenOrder;
-  station: StationFilter;
   onStatusChange: (itemId: string, status: string) => void;
   onDismissAlert: (orderId: string) => void;
 }) {
-  const items = stationItems(order, station);
-  const showAlert = alertForStation(order, station);
-  const sentAt = items[0]?.sentToKitchenAt ?? order.items[0]?.sentToKitchenAt;
+  const items = order.items;
+  const sentAt = items[0]?.sentToKitchenAt;
   const clockTime = sentAt
     ? new Date(sentAt).toLocaleTimeString("pt-PT", {
         hour: "2-digit",
@@ -207,15 +160,16 @@ function KitchenTicket({
   const isActive = items.some((i) => i.status === "em_preparacao");
   const isReady =
     items.length > 0 && items.every((i) => i.status === "pronto");
+  const hasAlert = Boolean(order.kitchenAlert);
 
   const entradas = items.filter((i) => i.kitchenZone === "entradas");
   const pratos = items.filter((i) => i.kitchenZone !== "entradas");
-  const showZoneHeaders = station === "todos" && entradas.length > 0 && pratos.length > 0;
+  const showZoneHeaders = entradas.length > 0 && pratos.length > 0;
 
   return (
     <div
       className={`card ticket flex flex-col ${
-        showAlert
+        hasAlert
           ? "border-red-400 pulse-new bg-red-50/40"
           : isActive
             ? "border-brand-gold/50 pulse-new"
@@ -237,7 +191,7 @@ function KitchenTicket({
         </p>
       </div>
 
-      {showAlert && order.kitchenAlert && (
+      {order.kitchenAlert && (
         <div className="rounded-xl bg-red-100 border-2 border-red-400 px-4 py-4 mb-4">
           <p className="text-sm font-black uppercase tracking-wide text-red-900 mb-2">
             Alteração no pedido
@@ -256,9 +210,9 @@ function KitchenTicket({
       )}
 
       <div className="space-y-4">
-        {items.length === 0 && showAlert && (
+        {items.length === 0 && order.kitchenAlert && (
           <p className="text-sm text-brand-muted text-center py-2">
-            Sem itens activos nesta secção — ver alerta acima.
+            Sem itens activos — apenas alerta de alteração.
           </p>
         )}
 
@@ -312,7 +266,6 @@ export default function CozinhaView() {
     fetchKitchen,
     2000
   );
-  const [station, setStation] = useState<StationFilter>("todos");
   const [filter, setFilter] = useState<StatusFilter>("ativos");
   const knownItemIds = useRef<Set<string>>(new Set());
   const knownAlerts = useRef<Map<string, string>>(new Map());
@@ -384,56 +337,49 @@ export default function CozinhaView() {
     [refresh]
   );
 
-  const counts = useMemo(() => {
-    const list = orders ?? [];
-    const activeEntradas = list.filter((o) =>
-      orderMatchesFilters(o, "entradas", "ativos")
-    ).length;
-    const activePratos = list.filter((o) =>
-      orderMatchesFilters(o, "pratos", "ativos")
-    ).length;
-    const readyCount = list.filter((o) =>
-      orderMatchesFilters(o, station, "prontos")
-    ).length;
-    const activeCount = list.filter((o) =>
-      orderMatchesFilters(o, station, "ativos")
-    ).length;
-    return { activeEntradas, activePratos, readyCount, activeCount };
-  }, [orders, station]);
+  const filtered = (orders ?? []).filter((order) => {
+    if (filter === "ativos") {
+      return (
+        order.kitchenAlert ||
+        order.items.some((i) => i.status === "em_preparacao")
+      );
+    }
+    if (filter === "prontos") {
+      return (
+        order.items.length > 0 &&
+        order.items.every((i) => i.status === "pronto")
+      );
+    }
+    return true;
+  });
 
-  const filtered = (orders ?? []).filter((order) =>
-    orderMatchesFilters(order, station, filter)
-  );
+  const activeCount =
+    orders?.filter(
+      (o) =>
+        o.kitchenAlert || o.items.some((i) => i.status === "em_preparacao")
+    ).length ?? 0;
 
-  const stationOptions = [
-    { id: "entradas", label: `Entradas (${counts.activeEntradas})` },
-    { id: "pratos", label: `Pratos (${counts.activePratos})` },
-    { id: "todos", label: "Todos" },
-  ];
+  const readyCount =
+    orders?.filter(
+      (o) =>
+        o.items.length > 0 && o.items.every((i) => i.status === "pronto")
+    ).length ?? 0;
 
   const filterOptions = [
-    { id: "ativos", label: `A preparar (${counts.activeCount})` },
-    { id: "prontos", label: `Prontos (${counts.readyCount})` },
+    { id: "ativos", label: `A Preparar (${activeCount})` },
+    { id: "prontos", label: `Prontos (${readyCount})` },
     { id: "todos", label: "Todos" },
   ];
-
-  const stationLabel =
-    station === "todos" ? "Cozinha" : getKitchenZoneLabel(station);
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden">
       <AppHeader
-        title={stationLabel}
-        subtitle={`${counts.activeCount} a preparar · ${counts.readyCount} prontos`}
+        title="Cozinha"
+        subtitle={`${activeCount} a preparar · ${readyCount} prontos`}
         actions={<LogoutButton />}
       />
 
-      <div className="px-3 sm:px-4 py-2 border-b border-brand-gold/10 shrink-0 space-y-2">
-        <SegmentedControl
-          options={stationOptions}
-          active={station}
-          onChange={(id) => setStation(id as StationFilter)}
-        />
+      <div className="px-3 sm:px-4 py-2 border-b border-brand-gold/10 shrink-0">
         <SegmentedControl
           options={filterOptions}
           active={filter}
@@ -444,26 +390,21 @@ export default function CozinhaView() {
       {filtered.length === 0 ? (
         <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-brand-muted gap-3 p-6">
           <p className="text-sm uppercase tracking-widest font-semibold">
-            {stationLabel}
+            Cozinha
           </p>
           <p className="text-lg sm:text-xl text-center">
             Sem pedidos {filter === "ativos" ? "a preparar" : ""}
           </p>
           <p className="text-sm text-center max-w-xs">
-            {station === "entradas"
-              ? "Entradas e apetizers aparecem aqui quando enviados"
-              : station === "pratos"
-                ? "Hambúrgueres, snacks e restantes pratos aparecem aqui"
-                : "Os pedidos aparecem quando o empregado envia à cozinha"}
+            Os pedidos aparecem quando o empregado envia à cozinha
           </p>
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 max-w-[2000px] mx-auto w-full pb-4">
           {filtered.map((order) => (
             <KitchenTicket
-              key={`${order.orderId}-${station}-${order.items.map((i) => i.id).join()}-${order.kitchenAlert ?? ""}`}
+              key={`${order.orderId}-${order.items.map((i) => i.id).join()}-${order.kitchenAlert ?? ""}`}
               order={order}
-              station={station}
               onStatusChange={handleStatusChange}
               onDismissAlert={handleDismissAlert}
             />
