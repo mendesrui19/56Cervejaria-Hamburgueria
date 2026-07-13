@@ -10,10 +10,14 @@ import {
 } from "@/components/ScreenLayout";
 import {
   addItem,
+  cancelItem,
   fetchState,
+  mergeTables,
   openTable,
   removeItem,
   sendToKitchen,
+  transferTable,
+  updateOrderItem,
 } from "@/lib/api";
 import {
   getDefaultCustomizations,
@@ -21,18 +25,26 @@ import {
   formatPrice,
 } from "@/lib/menu";
 import { calculateOrderTotal } from "@/lib/utils";
-import type { MenuItem, RestaurantState } from "@/lib/types";
+import type { MenuItem, OrderItem, RestaurantState } from "@/lib/types";
 import { usePolling } from "@/hooks/usePolling";
 import { useMenu } from "@/hooks/useMenu";
 import { MenuGrid } from "@/views/empregado/MenuGrid";
 import {
   AbrirMesaPage,
+  MesaActionsPage,
   MesasPage,
   PedidoPage,
 } from "@/views/empregado/PedidoPage";
 import { PersonalizarPage } from "@/views/empregado/PersonalizarPage";
 
-type Screen = "mesas" | "abrir" | "menu" | "pedido" | "personalizar";
+type Screen =
+  | "mesas"
+  | "abrir"
+  | "menu"
+  | "pedido"
+  | "personalizar"
+  | "mesa-acoes"
+  | "editar";
 
 interface WaiterTableFlowProps {
   showPortalLink?: boolean;
@@ -63,6 +75,7 @@ export function WaiterTableFlow({
   const [screen, setScreen] = useState<Screen>("mesas");
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [customizeItem, setCustomizeItem] = useState<MenuItem | null>(null);
+  const [editingItem, setEditingItem] = useState<OrderItem | null>(null);
   const [waiterName, setWaiterName] = useState("");
   const [guestCount, setGuestCount] = useState(2);
   const [addingId, setAddingId] = useState<string | null>(null);
@@ -98,6 +111,7 @@ export function WaiterTableFlow({
   const goMesas = useCallback(() => {
     setScreen("mesas");
     setCustomizeItem(null);
+    setEditingItem(null);
   }, []);
 
   const handleSelectTable = useCallback(
@@ -121,7 +135,8 @@ export function WaiterTableFlow({
       } else if (table?.status === "livre") {
         setScreen("abrir");
       } else {
-        setScreen("menu");
+        setError("Mesa sem pedido activo. Volta a tentar ou escolhe outra mesa.");
+        setSelectedTable(null);
       }
     },
     [state, waiterName]
@@ -221,6 +236,177 @@ export function WaiterTableFlow({
     [selectedTable, refresh]
   );
 
+  const handleCancelItem = useCallback(
+    async (itemId: string) => {
+      if (!selectedTable) return;
+      if (
+        !window.confirm(
+          "Cancelar este prato? Se já foi enviado à cozinha, será emitido um alerta."
+        )
+      ) {
+        return;
+      }
+      setLoading(true);
+      setError("");
+      try {
+        await cancelItem(selectedTable, itemId);
+        setToast("Prato cancelado");
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [selectedTable, refresh]
+  );
+
+  const handleUpdateQuantity = useCallback(
+    async (itemId: string, quantity: number) => {
+      if (!selectedTable) return;
+      try {
+        await updateOrderItem(selectedTable, itemId, { quantity });
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro");
+      }
+    },
+    [selectedTable, refresh]
+  );
+
+  const handleEditItem = useCallback(
+    (item: OrderItem) => {
+      if (item.status === "pronto" || item.status === "entregue") {
+        setError("Este prato já está pronto — não é possível alterar.");
+        return;
+      }
+      const menuItem = menuItems.find((entry) => entry.id === item.menuItemId);
+      if (!menuItem) {
+        setError("Produto não encontrado no menu.");
+        return;
+      }
+      setEditingItem(item);
+      setCustomizeItem(menuItem);
+      setScreen("editar");
+    },
+    [menuItems]
+  );
+
+  const handleSaveEdit = useCallback(
+    async (payload: {
+      quantity: number;
+      customizations: Array<{
+        groupId: string;
+        groupLabel: string;
+        optionId: string;
+        optionLabel: string;
+      }>;
+      notes: string;
+    }) => {
+      if (!selectedTable || !editingItem) return;
+      setAddingId(editingItem.id);
+      setError("");
+      try {
+        await updateOrderItem(selectedTable, editingItem.id, payload);
+        setToast(`${editingItem.name} atualizado`);
+        setEditingItem(null);
+        setCustomizeItem(null);
+        setScreen("pedido");
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro");
+      } finally {
+        setAddingId(null);
+      }
+    },
+    [selectedTable, editingItem, refresh]
+  );
+
+  const handleTransfer = useCallback(
+    async (toTableNumber: number) => {
+      if (!selectedTable) return;
+      if (
+        !window.confirm(
+          `Transferir pedido da mesa ${selectedTable} para a mesa ${toTableNumber}?`
+        )
+      ) {
+        return;
+      }
+      setLoading(true);
+      setError("");
+      try {
+        await transferTable(selectedTable, toTableNumber);
+        setSelectedTable(toTableNumber);
+        setToast(`Pedido transferido para mesa ${toTableNumber}`);
+        setScreen("pedido");
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [selectedTable, refresh]
+  );
+
+  const handleMerge = useCallback(
+    async (withTableNumber: number) => {
+      if (!selectedTable) return;
+      if (
+        !window.confirm(
+          `Juntar mesa ${withTableNumber} a esta conta? A outra mesa ficará livre.`
+        )
+      ) {
+        return;
+      }
+      setLoading(true);
+      setError("");
+      try {
+        await mergeTables(selectedTable, withTableNumber);
+        setToast(`Mesa ${withTableNumber} juntada a esta conta`);
+        setScreen("pedido");
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [selectedTable, refresh]
+  );
+
+  if (screen === "editar" && customizeItem && editingItem) {
+    return (
+      <>
+        {toast && <AddToast message={toast} onDone={() => setToast(null)} />}
+        {error && (
+          <div className="fixed top-4 inset-x-4 z-50 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-red-800 text-xs">
+            {error}
+            <button className="ml-2 text-xs uppercase" onClick={() => setError("")}>
+              Fechar
+            </button>
+          </div>
+        )}
+        <PersonalizarPage
+          item={customizeItem}
+          addonItems={addons}
+          mode="edit"
+          initialQuantity={editingItem.quantity}
+          initialNotes={editingItem.notes}
+          initialCustomizations={editingItem.customizations}
+          onBack={() => {
+            setEditingItem(null);
+            setCustomizeItem(null);
+            setScreen("pedido");
+          }}
+          onAdd={handleSaveEdit}
+          loading={addingId === editingItem.id}
+          nested={nested}
+        />
+      </>
+    );
+  }
+
   if (screen === "personalizar" && customizeItem) {
     return (
       <>
@@ -237,10 +423,42 @@ export function WaiterTableFlow({
     );
   }
 
+  if (screen === "mesa-acoes" && selectedTable) {
+    return (
+      <>
+        {error && (
+          <div className="fixed top-4 inset-x-4 z-50 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-red-800 text-xs">
+            {error}
+            <button className="ml-2 text-xs uppercase" onClick={() => setError("")}>
+              Fechar
+            </button>
+          </div>
+        )}
+        <MesaActionsPage
+          tableNumber={selectedTable}
+          tables={state?.tables ?? []}
+          loading={loading}
+          onBack={() => setScreen("pedido")}
+          onTransfer={handleTransfer}
+          onMerge={handleMerge}
+          nested={nested}
+        />
+      </>
+    );
+  }
+
   if (screen === "pedido" && currentOrder && selectedTable) {
     return (
       <>
         {toast && <AddToast message={toast} onDone={() => setToast(null)} />}
+        {error && (
+          <div className="fixed top-4 inset-x-4 z-50 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-red-800 text-xs">
+            {error}
+            <button className="ml-2 text-xs uppercase" onClick={() => setError("")}>
+              Fechar
+            </button>
+          </div>
+        )}
         <PedidoPage
           tableNumber={selectedTable}
           table={currentTable}
@@ -248,9 +466,14 @@ export function WaiterTableFlow({
           total={total}
           pendingCount={pendingCount}
           loading={loading}
+          menuItems={menuItems}
           onBack={() => setScreen("menu")}
           onRemoveItem={handleRemoveItem}
+          onCancelItem={handleCancelItem}
+          onEditItem={handleEditItem}
+          onUpdateQuantity={handleUpdateQuantity}
           onSendToKitchen={handleSendToKitchen}
+          onTableActions={() => setScreen("mesa-acoes")}
           nested={nested}
         />
       </>
@@ -367,6 +590,7 @@ export function WaiterTableFlow({
       )}
       <MesasPage
         tables={state?.tables ?? []}
+        orders={state?.orders ?? []}
         waiterName={waiterName}
         onSetWaiterName={setWaiterName}
         onSelectTable={handleSelectTable}

@@ -9,6 +9,8 @@ export type TableStatus = "livre" | "ocupada" | "a_pagar" | "fechada";
 
 export type PaymentMethod = "dinheiro" | "multibanco" | "mbway" | "misto";
 
+export type KitchenZone = "entradas" | "pratos";
+
 export interface MenuOption {
   id: string;
   label: string;
@@ -83,6 +85,7 @@ export interface KitchenTicketItem {
   sentToKitchenAt?: string;
   readyAt?: string;
   choices: string[];
+  kitchenZone?: KitchenZone;
 }
 
 export interface Order {
@@ -96,6 +99,10 @@ export interface Order {
   paidAt?: string;
   paymentMethod?: PaymentMethod;
   tip?: number;
+  paymentCash?: number;
+  paymentCard?: number;
+  kitchenAlert?: string;
+  kitchenAlertAt?: string;
 }
 
 export interface Table {
@@ -120,6 +127,12 @@ export interface AddOrderItemPayload {
   parentItemId?: string;
 }
 
+export interface UpdateOrderItemPayload {
+  quantity?: number;
+  customizations?: OrderItemCustomization[];
+  notes?: string;
+}
+
 export interface CreateOrderPayload {
   tableNumber: number;
   waiterName: string;
@@ -129,6 +142,34 @@ export interface CreateOrderPayload {
 export interface PaymentPayload {
   paymentMethod: PaymentMethod;
   tip?: number;
+  paymentCash?: number;
+  paymentCard?: number;
+}
+
+export interface RecentPaymentEntry {
+  orderId: string;
+  tableNumber: number;
+  waiterName: string;
+  paidAt: string;
+  total: number;
+  paymentMethod?: PaymentMethod;
+  paymentCash?: number;
+  paymentCard?: number;
+  tip?: number;
+}
+
+export interface DayCloseSummary {
+  orderCount: number;
+  subtotal: number;
+  tips: number;
+  total: number;
+  dinheiro: number;
+  multibanco: number;
+  mbway: number;
+  mistoCash: number;
+  mistoCard: number;
+  serviceDayLabel: string;
+  payments: RecentPaymentEntry[];
 }
 
 export interface MenuCatalog {
@@ -139,10 +180,42 @@ export interface MenuCatalog {
 
 export type AnalyticsPeriod = "day" | "week" | "month";
 
+export interface AdminPaymentBreakdown {
+  dinheiro: number;
+  multibanco: number;
+  mbway: number;
+  mistoCash: number;
+  mistoCard: number;
+  cashInDrawer: number;
+}
+
+export interface AdminDailyRow {
+  date: string;
+  label: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AdminHourlyRow {
+  hour: number;
+  label: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AdminComparison {
+  previousRevenue: number;
+  previousOrders: number;
+  revenueChange: number;
+  revenueChangePct: number;
+  ordersChange: number;
+}
+
 export interface AdminKPIs {
   period: AnalyticsPeriod;
   startAt: string;
   endAt: string;
+  periodLabel: string;
   revenue: number;
   tips: number;
   subtotal: number;
@@ -153,6 +226,11 @@ export interface AdminKPIs {
   byTable: Array<{ tableNumber: number; orders: number; revenue: number }>;
   byPayment: Array<{ method: PaymentMethod; count: number; amount: number }>;
   byWaiter: Array<{ name: string; orders: number; revenue: number }>;
+  payments: AdminPaymentBreakdown;
+  byDay: AdminDailyRow[];
+  byHour: AdminHourlyRow[];
+  cancelledItems: { count: number; value: number };
+  comparison: AdminComparison;
 }
 
 export interface OrderHistoryEntry {
@@ -162,11 +240,14 @@ export interface OrderHistoryEntry {
   createdAt: string;
   paidAt: string;
   paymentMethod?: PaymentMethod;
+  paymentCash?: number;
+  paymentCard?: number;
   subtotal: number;
   tip: number;
   total: number;
   itemCount: number;
   items: Array<{ name: string; quantity: number; price: number }>;
+  cancelledItems: Array<{ name: string; quantity: number; price: number }>;
 }
 
 export interface UpdateMenuItemPayload {

@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AdminHistory } from "@/components/admin/AdminHistory";
 import { AdminLayout, type AdminSection } from "@/components/admin/AdminLayout";
+import { AdminLiveBar } from "@/components/admin/AdminLiveBar";
+import { AdminReports } from "@/components/admin/AdminReports";
 import { PeriodSelector } from "@/components/admin/PeriodSelector";
 import {
   createCatalogItem,
@@ -11,8 +14,8 @@ import {
   fetchAdminHistory,
   updateCatalogItem,
 } from "@/lib/api";
-import { CATEGORY_SHORT, formatPrice } from "@/lib/menu";
-import { formatPeriodLabel, parseDateParam, toDateParam } from "@/lib/period";
+import { CATEGORY_SHORT } from "@/lib/menu";
+import { toDateParam } from "@/lib/period";
 import type {
   AdminKPIs,
   AnalyticsPeriod,
@@ -22,276 +25,23 @@ import type {
   OrderHistoryEntry,
 } from "@/lib/types";
 
-const PAYMENT_LABELS: Record<string, string> = {
-  dinheiro: "Dinheiro",
-  multibanco: "Multibanco",
-  mbway: "MB Way",
-  misto: "Misto",
-};
-
 const SECTION_META: Record<
   AdminSection,
   { title: string; subtitle: string }
 > = {
   relatorios: {
     title: "Relatórios",
-    subtitle: "KPIs, faturação e análise por período",
+    subtitle: "Faturação, caixa, comparações e tendências",
   },
   historico: {
     title: "Histórico",
-    subtitle: "Todas as contas fechadas",
+    subtitle: "Contas fechadas com detalhe e exportação",
   },
   catalogo: {
     title: "Catálogo",
     subtitle: "Adicionar, editar e remover produtos",
   },
 };
-
-function KpiCard({
-  label,
-  value,
-  hint,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-2xl border p-4 ${
-        highlight
-          ? "border-brand-gold/40 bg-brand-gold/5"
-          : "border-brand-gold/15 bg-brand-card"
-      }`}
-    >
-      <p className="text-[10px] uppercase tracking-widest text-brand-muted font-bold">
-        {label}
-      </p>
-      <p className="text-2xl lg:text-3xl font-black text-brand-gold mt-1">
-        {value}
-      </p>
-      {hint && <p className="text-xs text-brand-muted mt-1">{hint}</p>}
-    </div>
-  );
-}
-
-function ReportsSection({ kpis }: { kpis: AdminKPIs }) {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="Faturação" value={formatPrice(kpis.revenue)} highlight />
-        <KpiCard label="Contas" value={String(kpis.orderCount)} />
-        <KpiCard label="Ticket médio" value={formatPrice(kpis.avgTicket)} />
-        <KpiCard label="Itens vendidos" value={String(kpis.itemsSold)} />
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4">
-        <div className="card">
-          <h3 className="text-sm font-bold text-brand-gold mb-3 uppercase tracking-wide">
-            Top produtos
-          </h3>
-          {kpis.topItems.length === 0 ? (
-            <p className="text-brand-muted text-sm">Sem dados</p>
-          ) : (
-            <div className="space-y-2">
-              {kpis.topItems.map((item) => (
-                <div
-                  key={item.name}
-                  className="flex justify-between gap-3 text-sm"
-                >
-                  <span className="text-brand-muted truncate">{item.name}</span>
-                  <span className="text-brand-gold font-semibold shrink-0">
-                    {item.quantity} · {formatPrice(item.revenue)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <h3 className="text-sm font-bold text-brand-gold mb-3 uppercase tracking-wide">
-            Por mesa
-          </h3>
-          <div className="space-y-2 max-h-72 overflow-y-auto scrollbar-thin">
-            {kpis.byTable.map((row) => (
-              <div
-                key={row.tableNumber}
-                className="flex justify-between gap-3 text-sm"
-              >
-                <span className="text-brand-muted">
-                  Mesa {row.tableNumber} · {row.orders} conta
-                  {row.orders !== 1 ? "s" : ""}
-                </span>
-                <span className="text-brand-gold font-semibold">
-                  {formatPrice(row.revenue)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card">
-          <h3 className="text-sm font-bold text-brand-gold mb-3 uppercase tracking-wide">
-            Pagamentos
-          </h3>
-          <div className="space-y-2">
-            {kpis.byPayment.map((row) => (
-              <div
-                key={row.method}
-                className="flex justify-between gap-3 text-sm"
-              >
-                <span className="text-brand-muted">
-                  {PAYMENT_LABELS[row.method] ?? row.method} ({row.count})
-                </span>
-                <span className="text-brand-gold font-semibold">
-                  {formatPrice(row.amount)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card">
-          <h3 className="text-sm font-bold text-brand-gold mb-3 uppercase tracking-wide">
-            Por empregado
-          </h3>
-          <div className="space-y-2">
-            {kpis.byWaiter.map((row) => (
-              <div
-                key={row.name}
-                className="flex justify-between gap-3 text-sm"
-              >
-                <span className="text-brand-muted truncate">
-                  {row.name} · {row.orders}
-                </span>
-                <span className="text-brand-gold font-semibold">
-                  {formatPrice(row.revenue)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <p className="text-xs text-brand-muted text-center">
-        Gorjetas: {formatPrice(kpis.tips)} · Subtotal: {formatPrice(kpis.subtotal)}
-      </p>
-    </div>
-  );
-}
-
-function HistorySection({
-  history,
-  period,
-  anchorDate,
-}: {
-  history: OrderHistoryEntry[];
-  period: AnalyticsPeriod;
-  anchorDate: string;
-}) {
-  const reference = parseDateParam(anchorDate);
-  const [filterTable, setFilterTable] = useState("");
-
-  const filtered = filterTable
-    ? history.filter((h) => h.tableNumber === Number(filterTable))
-    : history;
-
-  const tables = [...new Set(history.map((h) => h.tableNumber))].sort(
-    (a, b) => a - b
-  );
-
-  if (history.length === 0) {
-    return (
-      <p className="text-center text-brand-muted py-16">
-        Sem contas fechadas em {formatPeriodLabel(period, reference).toLowerCase()}
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-brand-muted">
-        {history.length} conta{history.length !== 1 ? "s" : ""} ·{" "}
-        <span className="text-brand-gold font-semibold">
-          {formatPeriodLabel(period, reference)}
-        </span>
-      </p>
-      {tables.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-          <button
-            onClick={() => setFilterTable("")}
-            className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold ${
-              !filterTable
-                ? "bg-brand-gold text-white"
-                : "bg-brand-card text-brand-muted border border-brand-gold/10"
-            }`}
-          >
-            Todas
-          </button>
-          {tables.map((n) => (
-            <button
-              key={n}
-              onClick={() => setFilterTable(String(n))}
-              className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold ${
-                filterTable === String(n)
-                  ? "bg-brand-gold text-white"
-                  : "bg-brand-card text-brand-muted border border-brand-gold/10"
-              }`}
-            >
-              Mesa {n}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <p className="text-xs text-brand-muted">
-        {filtered.length} conta{filtered.length !== 1 ? "s" : ""}
-      </p>
-
-      <div className="space-y-3">
-        {filtered.map((entry) => (
-          <div key={entry.id} className="card">
-            <div className="flex flex-wrap justify-between gap-2 mb-2">
-              <div>
-                <p className="font-bold text-brand-gold text-lg">
-                  Mesa {entry.tableNumber}
-                </p>
-                <p className="text-sm text-brand-muted">{entry.waiterName}</p>
-                <p className="text-xs text-brand-muted mt-0.5">
-                  {new Date(entry.paidAt).toLocaleString("pt-PT")}
-                  {entry.paymentMethod &&
-                    ` · ${PAYMENT_LABELS[entry.paymentMethod] ?? entry.paymentMethod}`}
-                </p>
-              </div>
-              <p className="text-2xl font-black text-brand-gold">
-                {formatPrice(entry.total)}
-              </p>
-            </div>
-            <div className="border-t border-brand-gold/10 pt-2 grid sm:grid-cols-2 gap-x-4 gap-y-1">
-              {entry.items.map((item, idx) => (
-                <div
-                  key={`${entry.id}-${idx}`}
-                  className="flex justify-between text-sm text-brand-muted"
-                >
-                  <span className="truncate pr-2">
-                    {item.quantity > 1 && `${item.quantity}× `}
-                    {item.name}
-                  </span>
-                  <span className="shrink-0">
-                    {formatPrice(item.price * item.quantity)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function CatalogSection({
   catalog,
@@ -473,9 +223,14 @@ function CatalogSection({
               >
                 {(newItem.type === "bebida"
                   ? catalog.categories.filter((c) =>
-                      ["bebidas", "cervejas", "cervejas-estrangeiras", "vinhos", "sangrias", "gins"].includes(
-                        c.id
-                      )
+                      [
+                        "bebidas",
+                        "cervejas",
+                        "cervejas-estrangeiras",
+                        "vinhos",
+                        "sangrias",
+                        "gins",
+                      ].includes(c.id)
                     )
                   : editableCategories
                 ).map((cat: MenuCategory) => (
@@ -509,8 +264,7 @@ function CatalogSection({
           >
             {CATEGORY_SHORT[cat.id] ?? cat.name}
             <span className="ml-1 opacity-60">
-              (
-              {catalog.items.filter((i) => i.categoryId === cat.id).length})
+              ({catalog.items.filter((i) => i.categoryId === cat.id).length})
             </span>
           </button>
         ))}
@@ -662,6 +416,10 @@ export default function AdminView() {
 
   const meta = SECTION_META[section];
   const showPeriod = section === "relatorios" || section === "historico";
+  const showLive =
+    section === "relatorios" &&
+    period === "day" &&
+    anchorDate === toDateParam(new Date());
 
   return (
     <AdminLayout
@@ -688,9 +446,16 @@ export default function AdminView() {
           A carregar…
         </div>
       ) : section === "relatorios" && kpis ? (
-        <ReportsSection kpis={kpis} />
+        <>
+          {showLive && <AdminLiveBar />}
+          <AdminReports kpis={kpis} anchorDate={anchorDate} />
+        </>
       ) : section === "historico" ? (
-        <HistorySection history={history} period={period} anchorDate={anchorDate} />
+        <AdminHistory
+          history={history}
+          period={period}
+          anchorDate={anchorDate}
+        />
       ) : section === "catalogo" && catalog ? (
         <CatalogSection catalog={catalog} onSaved={loadData} />
       ) : null}

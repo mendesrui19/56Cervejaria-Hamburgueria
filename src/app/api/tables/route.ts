@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { openTable } from "@/lib/store";
+import { assertTableNumber } from "@/lib/validators";
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +14,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await openTable(tableNumber, waiterName, guestCount);
+    const result = await openTable(
+      assertTableNumber(Number(tableNumber)),
+      String(waiterName),
+      guestCount
+    );
     return NextResponse.json(result);
   } catch (e) {
     return NextResponse.json(

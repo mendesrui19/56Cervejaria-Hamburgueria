@@ -25,6 +25,10 @@ interface PersonalizarPageProps {
   }) => void;
   loading: boolean;
   nested?: boolean;
+  mode?: "add" | "edit";
+  initialQuantity?: number;
+  initialNotes?: string;
+  initialCustomizations?: OrderItemCustomization[];
 }
 
 export function PersonalizarPage({
@@ -34,8 +38,23 @@ export function PersonalizarPage({
   onAdd,
   loading,
   nested = false,
+  mode = "add",
+  initialQuantity = 1,
+  initialNotes = "",
+  initialCustomizations,
 }: PersonalizarPageProps) {
+  const [quantity, setQuantity] = useState(initialQuantity);
   const [selections, setSelections] = useState<Record<string, string>>(() => {
+    if (initialCustomizations?.length) {
+      const fromOrder: Record<string, string> = {};
+      initialCustomizations
+        .filter((c) => !c.groupId.startsWith("extra-"))
+        .forEach((c) => {
+          fromOrder[c.groupId] = c.optionId;
+        });
+      if (Object.keys(fromOrder).length > 0) return fromOrder;
+    }
+
     const defaults: Record<string, string> = {};
     item.optionGroups?.forEach((group) => {
       const def = group.options.find((o) => o.default) ?? group.options[0];
@@ -43,8 +62,15 @@ export function PersonalizarPage({
     });
     return defaults;
   });
-  const [extras, setExtras] = useState<Set<string>>(new Set());
-  const [notes, setNotes] = useState("");
+  const [extras, setExtras] = useState<Set<string>>(() => {
+    if (!initialCustomizations?.length) return new Set();
+    return new Set(
+      initialCustomizations
+        .filter((c) => c.groupId.startsWith("extra-"))
+        .map((c) => c.optionId)
+    );
+  });
+  const [notes, setNotes] = useState(initialNotes);
 
   const addonItemsList = addonItems;
 
@@ -89,21 +115,49 @@ export function PersonalizarPage({
   }
 
   function handleAdd() {
-    onAdd({ quantity: 1, customizations, notes });
+    onAdd({ quantity, customizations, notes });
   }
+
+  const totalLine = totalPrice * quantity;
 
   return (
     <ScreenPage nested={nested}>
       <ScreenHeader
-        title={item.name}
-        subtitle={formatPrice(totalPrice)}
+        title={mode === "edit" ? `Editar — ${item.name}` : item.name}
+        subtitle={formatPrice(totalLine)}
         onBack={onBack}
-        backLabel="Menu"
+        backLabel={mode === "edit" ? "Pedido" : "Menu"}
         compact={nested}
       />
 
       <ScreenBody>
         <div className="p-4 space-y-5">
+          {(mode === "add" || mode === "edit") && (
+            <section>
+              <h2 className="text-sm font-bold text-brand-gold mb-2">
+                Quantidade
+              </h2>
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="min-w-[48px] min-h-[48px] rounded-full bg-brand-surface border border-brand-gold/30 text-brand-gold text-xl"
+                >
+                  −
+                </button>
+                <span className="text-3xl font-black text-brand-gold w-10 text-center tabular-nums">
+                  {quantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+                  className="min-w-[48px] min-h-[48px] rounded-full bg-brand-surface border border-brand-gold/30 text-brand-gold text-xl"
+                >
+                  +
+                </button>
+              </div>
+            </section>
+          )}
           {item.excludesFries && (
             <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-amber-900 text-sm">
               Batata frita não incluída
@@ -181,7 +235,9 @@ export function PersonalizarPage({
           disabled={loading}
           className="btn-primary w-full text-base"
         >
-          Adicionar — {formatPrice(totalPrice)}
+          {mode === "edit"
+            ? `Guardar — ${formatPrice(totalLine)}`
+            : `Adicionar — ${formatPrice(totalLine)}`}
         </button>
       </ScreenFooter>
     </ScreenPage>

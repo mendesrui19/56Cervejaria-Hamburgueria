@@ -5,8 +5,8 @@ import Link from "next/link";
 export type AdminSection = "relatorios" | "historico" | "catalogo";
 
 const NAV: { id: AdminSection; label: string; desc: string }[] = [
-  { id: "relatorios", label: "Relatórios", desc: "KPIs e faturação" },
-  { id: "historico", label: "Histórico", desc: "Contas fechadas" },
+  { id: "relatorios", label: "Relatórios", desc: "Dia, semana e mês" },
+  { id: "historico", label: "Histórico", desc: "Contas e detalhe" },
   { id: "catalogo", label: "Catálogo", desc: "Preços e menu" },
 ];
 

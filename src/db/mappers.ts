@@ -91,6 +91,16 @@ export function mapOrder(
     paidAt: row.paidAt ?? undefined,
     paymentMethod: (row.paymentMethod as PaymentMethod | null) ?? undefined,
     tip: row.tip === null ? undefined : toNumber(row.tip),
+    paymentCash:
+      row.paymentCash === null || row.paymentCash === undefined
+        ? undefined
+        : toNumber(row.paymentCash),
+    paymentCard:
+      row.paymentCard === null || row.paymentCard === undefined
+        ? undefined
+        : toNumber(row.paymentCard),
+    kitchenAlert: row.kitchenAlert ?? undefined,
+    kitchenAlertAt: row.kitchenAlertAt ?? undefined,
   };
 }
 

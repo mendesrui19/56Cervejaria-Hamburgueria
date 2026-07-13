@@ -1,4 +1,4 @@
-import { asc, eq, inArray, isNull } from "drizzle-orm";
+import { asc, and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { getDb } from "@/db/client";
 import {
@@ -24,22 +24,53 @@ import {
   calculateItemPrice,
   isExtraCustomization,
 } from "./menu";
+import {
+  kitchenAlertTag,
+  sortKitchenItems,
+} from "./kitchen-zones";
+import {
+  formatKitchenItemLabel,
+  resolveItemKitchenZone,
+  setKitchenAlert,
+  setKitchenAlertForItem,
+} from "./kitchen-alerts";
 import type {
   AddOrderItemPayload,
   CreateOrderPayload,
   KitchenTicketItem,
+  KitchenZone,
   Order,
   OrderItem,
   OrderItemCustomization,
   OrderItemStatus,
   PaymentPayload,
+  RecentPaymentEntry,
   RestaurantState,
   Table,
   TableStatus,
+  UpdateOrderItemPayload,
 } from "./types";
+import {
+  assertKitchenStatusTransition,
+  assertMistoSplit,
+  assertPaymentMethod,
+  assertTableNumber,
+  normalizeTip,
+  TABLE_COUNT,
+} from "./validators";
+import { getServiceDayStart } from "./period";
 
 const RESTAURANT_META_ID = "restaurant";
-const TABLE_COUNT = 20;
+
+function customizationsKey(customizations: OrderItemCustomization[]): string {
+  return JSON.stringify(
+    [...customizations].sort((a, b) => a.groupId.localeCompare(b.groupId))
+  );
+}
+
+function canModifyAfterKitchen(item: OrderItem): boolean {
+  return item.status === "em_preparacao";
+}
 
 async function touchRestaurantUpdated(at = new Date().toISOString()) {
   const db = getDb();
@@ -270,6 +301,16 @@ export async function saveState(state: RestaurantState): Promise<void> {
         order.tip === undefined || order.tip === null
           ? null
           : String(order.tip),
+      paymentCash:
+        order.paymentCash === undefined || order.paymentCash === null
+          ? null
+          : String(order.paymentCash),
+      paymentCard:
+        order.paymentCard === undefined || order.paymentCard === null
+          ? null
+          : String(order.paymentCard),
+      kitchenAlert: order.kitchenAlert ?? null,
+      kitchenAlertAt: order.kitchenAlertAt ?? null,
     });
 
     for (const item of order.items) {
@@ -281,7 +322,11 @@ export async function saveState(state: RestaurantState): Promise<void> {
 }
 
 export async function getState(): Promise<RestaurantState> {
-  return loadState();
+  const state = await loadState();
+  return {
+    ...state,
+    orders: state.orders.filter((order) => !order.paidAt),
+  };
 }
 
 export async function openTable(
@@ -289,6 +334,10 @@ export async function openTable(
   waiterName: string,
   guestCount?: number
 ): Promise<{ table: Table; order: Order }> {
+  assertTableNumber(tableNumber);
+  const trimmedName = waiterName.trim();
+  if (!trimmedName) throw new Error("Nome do empregado obrigatório");
+
   await ensureTablesExist();
 
   const existing = await getActiveOrder(tableNumber);
@@ -312,13 +361,16 @@ export async function openTable(
     .limit(1);
 
   if (!table) throw new Error("Mesa não encontrada");
+  if (table.status !== "livre" || table.orderId) {
+    throw new Error("Mesa não está livre");
+  }
 
   const now = new Date().toISOString();
   const order: Order = {
     id: uuidv4(),
     tableNumber,
     items: [],
-    waiterName,
+    waiterName: trimmedName,
     createdAt: now,
     updatedAt: now,
   };
@@ -326,7 +378,7 @@ export async function openTable(
   await db.insert(orders).values({
     id: order.id,
     tableNumber,
-    waiterName,
+    waiterName: trimmedName,
     createdAt: now,
     updatedAt: now,
   });
@@ -339,8 +391,18 @@ export async function openTable(
       guestCount: guestCount ?? null,
       openedAt: now,
     })
-    .where(eq(restaurantTables.number, tableNumber))
+    .where(
+      and(
+        eq(restaurantTables.number, tableNumber),
+        eq(restaurantTables.status, "livre"),
+        isNull(restaurantTables.orderId)
+      )
+    )
     .returning();
+
+  if (!updatedTable) {
+    throw new Error("Mesa já foi aberta por outro empregado");
+  }
 
   await touchRestaurantUpdated(now);
   return { table: mapTable(updatedTable), order };
@@ -359,6 +421,15 @@ export async function addItemToOrder(
   tableNumber: number,
   payload: AddOrderItemPayload
 ): Promise<Order> {
+  assertTableNumber(tableNumber);
+
+  const db = getDb();
+  const [tableRow] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, tableNumber))
+    .limit(1);
+
   let order = await getActiveOrder(tableNumber);
   if (!order) {
     throw new Error("Mesa sem pedido ativo. Abra a mesa primeiro.");
@@ -367,6 +438,10 @@ export async function addItemToOrder(
   const menuItem = await getCatalogItem(payload.menuItemId);
   if (!menuItem || menuItem.active === false) {
     throw new Error("Item do menu não encontrado");
+  }
+
+  if (tableRow?.status === "a_pagar" && !menuItem.skipKitchen) {
+    throw new Error("Mesa a pagar — só bar/bebidas");
   }
 
   const catalog = await loadCatalog();
@@ -417,7 +492,6 @@ export async function addItemToOrder(
 
     await updateOrderItemRecord(parent);
     const now = new Date().toISOString();
-    const db = getDb();
     await db
       .update(orders)
       .set({ updatedAt: now })
@@ -445,12 +519,38 @@ export async function addItemToOrder(
     ? []
     : buildKitchenChoices(menuItem, payload.customizations);
 
+  const quantity = Math.max(1, Math.min(20, payload.quantity || 1));
+
+  if (!menuItem.isAddon && !payload.parentItemId) {
+    const existingLine = order.items.find(
+      (item) =>
+        item.status === "pendente" &&
+        !item.isAddon &&
+        item.menuItemId === menuItem.id &&
+        item.notes === payload.notes &&
+        customizationsKey(item.customizations) ===
+          customizationsKey(payload.customizations)
+    );
+
+    if (existingLine) {
+      existingLine.quantity += quantity;
+      await updateOrderItemRecord(existingLine);
+      const now = new Date().toISOString();
+      await db
+        .update(orders)
+        .set({ updatedAt: now })
+        .where(eq(orders.id, order.id));
+      await touchRestaurantUpdated(now);
+      return (await fetchOrderRows(order.id))!;
+    }
+  }
+
   const orderItem: OrderItem = {
     id: uuidv4(),
     menuItemId: menuItem.id,
     name: menuItem.name,
     price: calculateItemPrice(menuItem, payload.customizations, resolveItem),
-    quantity: payload.quantity,
+    quantity,
     customizations: payload.customizations,
     notes: payload.notes,
     ingredients,
@@ -465,7 +565,6 @@ export async function addItemToOrder(
   await insertOrderItem(order.id, orderItem);
 
   const now = new Date().toISOString();
-  const db = getDb();
   await db
     .update(orders)
     .set({ updatedAt: now })
@@ -488,6 +587,20 @@ export async function sendItemsToKitchen(
   if (!order) throw new Error("Pedido não encontrado");
 
   const now = new Date().toISOString();
+  const catalog = await loadCatalog();
+  const categoryByMenuId = new Map(
+    catalog.items.map((item) => [item.id, item.categoryId])
+  );
+
+  const hadKitchenActivity = order.items.some(
+    (item) =>
+      !item.isAddon &&
+      !item.skipKitchen &&
+      item.status !== "cancelado" &&
+      item.status !== "pendente"
+  );
+
+  const newlySent: OrderItem[] = [];
 
   for (const item of order.items) {
     if (item.status !== "pendente") continue;
@@ -498,6 +611,7 @@ export async function sendItemsToKitchen(
     item.status = "em_preparacao";
     item.sentToKitchenAt = now;
     await updateOrderItemRecord(item);
+    newlySent.push(item);
   }
 
   const db = getDb();
@@ -506,6 +620,40 @@ export async function sendItemsToKitchen(
     .set({ updatedAt: now })
     .where(eq(orders.id, order.id));
   await touchRestaurantUpdated(now);
+
+  if (hadKitchenActivity && newlySent.length > 0) {
+    if (newlySent.length === 1) {
+      await setKitchenAlertForItem(
+        order.id,
+        tableNumber,
+        newlySent[0]!,
+        "NOVO",
+        categoryByMenuId
+      );
+    } else {
+      const byZone = new Map<KitchenZone, string[]>();
+      for (const item of newlySent) {
+        const zone = await resolveItemKitchenZone(
+          item.menuItemId,
+          categoryByMenuId
+        );
+        const list = byZone.get(zone) ?? [];
+        list.push(formatKitchenItemLabel(item.quantity, item.name));
+        byZone.set(zone, list);
+      }
+      const parts: string[] = [];
+      for (const zone of ["entradas", "pratos"] as const) {
+        const labels = byZone.get(zone);
+        if (labels?.length) {
+          parts.push(`${kitchenAlertTag(zone)} ${labels.join(", ")}`);
+        }
+      }
+      await setKitchenAlert(
+        order.id,
+        `Mesa ${tableNumber}: NOVO — ${parts.join(" · ")}`
+      );
+    }
+  }
 
   return (await fetchOrderRows(order.id))!;
 }
@@ -523,8 +671,19 @@ export async function updateItemStatus(
 
   if (!itemRow) throw new Error("Item não encontrado");
 
+  const orderBefore = await fetchOrderRows(itemRow.orderId);
+  if (!orderBefore) throw new Error("Pedido não encontrado");
+  if (orderBefore.paidAt) throw new Error("Pedido já foi pago");
+
+  assertKitchenStatusTransition(itemRow.status as OrderItemStatus, status);
+
   const now = new Date().toISOString();
-  const readyAt = status === "pronto" ? now : itemRow.readyAt;
+  const readyAt =
+    status === "pronto"
+      ? now
+      : status === "em_preparacao"
+      ? null
+      : itemRow.readyAt;
 
   await db
     .update(orderItems)
@@ -616,6 +775,10 @@ export async function processPayment(
   tableNumber: number,
   payload: PaymentPayload
 ): Promise<{ table: Table; order: Order; total: number }> {
+  assertTableNumber(tableNumber);
+  const paymentMethod = assertPaymentMethod(payload.paymentMethod);
+  const tip = normalizeTip(payload.tip);
+
   const db = getDb();
   const [table] = await db
     .select()
@@ -627,24 +790,42 @@ export async function processPayment(
 
   const order = await fetchOrderRows(table.orderId);
   if (!order) throw new Error("Pedido não encontrado");
+  if (order.paidAt) throw new Error("Este pedido já foi pago");
 
   const subtotal = order.items
     .filter((item) => item.status !== "cancelado" && !item.isAddon)
     .reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const now = new Date().toISOString();
-  const tip = payload.tip ?? 0;
+  const total = subtotal + tip;
 
-  await db
+  let paymentCash: string | null = null;
+  let paymentCard: string | null = null;
+  if (paymentMethod === "misto") {
+    const split = assertMistoSplit(
+      total,
+      payload.paymentCash,
+      payload.paymentCard
+    );
+    paymentCash = String(split.cash);
+    paymentCard = String(split.card);
+  }
+
+  const [paidOrder] = await db
     .update(orders)
     .set({
       paidAt: now,
-      paymentMethod: payload.paymentMethod,
+      paymentMethod,
       tip: String(tip),
+      paymentCash,
+      paymentCard,
       closedAt: now,
       updatedAt: now,
     })
-    .where(eq(orders.id, order.id));
+    .where(and(eq(orders.id, order.id), isNull(orders.paidAt)))
+    .returning();
+
+  if (!paidOrder) throw new Error("Este pedido já foi pago");
 
   for (const item of order.items) {
     if (item.status === "cancelado" || item.status === "entregue") continue;
@@ -667,12 +848,129 @@ export async function processPayment(
 
   await touchRestaurantUpdated(now);
 
-  const paidOrder = (await fetchOrderRows(order.id))!;
+  const finalOrder = (await fetchOrderRows(order.id))!;
   return {
     table: mapTable(updatedTable),
-    order: paidOrder,
-    total: subtotal + tip,
+    order: finalOrder,
+    total,
   };
+}
+
+export async function getRecentPayments(
+  limit = 8
+): Promise<RecentPaymentEntry[]> {
+  const db = getDb();
+  const since = getServiceDayStart().toISOString();
+
+  const rows = await db
+    .select()
+    .from(orders)
+    .where(isNotNull(orders.paidAt))
+    .orderBy(desc(orders.paidAt))
+    .limit(limit * 3);
+
+  const results: RecentPaymentEntry[] = [];
+
+  for (const row of rows) {
+    if (!row.paidAt || row.paidAt < since) continue;
+
+    const order = await fetchOrderRows(row.id);
+    if (!order?.paidAt) continue;
+
+    const subtotal = order.items
+      .filter((item) => item.status !== "cancelado" && !item.isAddon)
+      .reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const tip = order.tip ?? 0;
+
+    results.push({
+      orderId: order.id,
+      tableNumber: order.tableNumber,
+      waiterName: order.waiterName,
+      paidAt: order.paidAt,
+      total: subtotal + tip,
+      paymentMethod: order.paymentMethod,
+      paymentCash: order.paymentCash,
+      paymentCard: order.paymentCard,
+      tip,
+    });
+
+    if (results.length >= limit) break;
+  }
+
+  return results;
+}
+
+export async function voidPayment(orderId: string): Promise<Order> {
+  const db = getDb();
+  const order = await fetchOrderRows(orderId);
+  if (!order) throw new Error("Pedido não encontrado");
+  if (!order.paidAt) throw new Error("Este pedido ainda não foi pago");
+
+  const [table] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, order.tableNumber))
+    .limit(1);
+
+  if (!table) throw new Error("Mesa não encontrada");
+  if (table.orderId) {
+    throw new Error("Mesa já tem um pedido novo — não é possível anular");
+  }
+
+  const now = new Date().toISOString();
+
+  await db
+    .update(orders)
+    .set({
+      paidAt: null,
+      closedAt: null,
+      paymentMethod: null,
+      tip: null,
+      paymentCash: null,
+      paymentCard: null,
+      updatedAt: now,
+    })
+    .where(eq(orders.id, order.id));
+
+  for (const item of order.items) {
+    if (item.status === "cancelado") continue;
+
+    const nextStatus = item.skipKitchen
+      ? "pendente"
+      : item.sentToKitchenAt
+      ? "pronto"
+      : "pendente";
+
+    await db
+      .update(orderItems)
+      .set({
+        status: nextStatus,
+        readyAt: nextStatus === "pronto" ? item.readyAt ?? now : null,
+      })
+      .where(eq(orderItems.id, item.id));
+  }
+
+  const refreshed = (await fetchOrderRows(order.id))!;
+  const kitchenItems = refreshed.items.filter(
+    (item) =>
+      !item.skipKitchen && !item.isAddon && item.status !== "cancelado"
+  );
+  const hasReady = kitchenItems.some((item) => item.status === "pronto");
+  const allReady = kitchenItems.every(
+    (item) => item.status === "pronto" || item.status === "entregue"
+  );
+
+  await db
+    .update(restaurantTables)
+    .set({
+      status: hasReady && allReady ? "a_pagar" : "ocupada",
+      orderId: order.id,
+      openedAt: table.openedAt ?? now,
+    })
+    .where(eq(restaurantTables.number, order.tableNumber));
+
+  await touchRestaurantUpdated(now);
+  return (await fetchOrderRows(order.id))!;
 }
 
 async function resolveKitchenChoices(item: OrderItem): Promise<string[]> {
@@ -686,7 +984,8 @@ async function resolveKitchenChoices(item: OrderItem): Promise<string[]> {
 
 function toKitchenTicketItem(
   item: OrderItem,
-  choices: string[]
+  choices: string[],
+  kitchenZone: KitchenZone
 ): KitchenTicketItem {
   return {
     id: item.id,
@@ -697,6 +996,7 @@ function toKitchenTicketItem(
     sentToKitchenAt: item.sentToKitchenAt,
     readyAt: item.readyAt,
     choices,
+    kitchenZone,
   };
 }
 
@@ -707,6 +1007,8 @@ export async function getKitchenOrders(): Promise<
     waiterName: string;
     items: KitchenTicketItem[];
     createdAt: string;
+    kitchenAlert?: string;
+    kitchenAlertAt?: string;
   }>
 > {
   const db = getDb();
@@ -722,7 +1024,14 @@ export async function getKitchenOrders(): Promise<
     waiterName: string;
     items: KitchenTicketItem[];
     createdAt: string;
+    kitchenAlert?: string;
+    kitchenAlertAt?: string;
   }> = [];
+
+  const catalog = await loadCatalog();
+  const categoryByMenuId = new Map(
+    catalog.items.map((item) => [item.id, item.categoryId])
+  );
 
   for (const orderRow of activeOrders) {
     const order = await fetchOrderRows(orderRow.id);
@@ -732,31 +1041,32 @@ export async function getKitchenOrders(): Promise<
       (item) =>
         !item.isAddon &&
         !item.skipKitchen &&
+        item.status !== "cancelado" &&
         (item.status === "em_preparacao" ||
           item.status === "pronto" ||
           (item.status === "pendente" && item.sentToKitchenAt))
     );
 
-    if (visibleItems.length === 0) continue;
+    if (visibleItems.length === 0 && !order.kitchenAlert) continue;
 
-    const items = await Promise.all(
-      visibleItems.map(async (item) => {
-        const choices = await resolveKitchenChoices(item);
-        const stored = JSON.stringify(item.ingredients);
-        const next = JSON.stringify(choices);
-
-        if (stored !== next) {
-          item.ingredients = choices;
-          await db
-            .update(orderItems)
-            .set({ ingredients: choices })
-            .where(eq(orderItems.id, item.id));
-          await touchRestaurantUpdated();
-        }
-
-        return toKitchenTicketItem(item, choices);
-      })
-    );
+    const items =
+      visibleItems.length === 0
+        ? []
+        : sortKitchenItems(
+            await Promise.all(
+              visibleItems.map(async (item) => {
+                const choices =
+                  item.ingredients.length > 0
+                    ? item.ingredients
+                    : await resolveKitchenChoices(item);
+                const zone = await resolveItemKitchenZone(
+                  item.menuItemId,
+                  categoryByMenuId
+                );
+                return toKitchenTicketItem(item, choices, zone);
+              })
+            )
+          );
 
     results.push({
       orderId: order.id,
@@ -764,6 +1074,8 @@ export async function getKitchenOrders(): Promise<
       waiterName: order.waiterName,
       items,
       createdAt: order.createdAt,
+      kitchenAlert: order.kitchenAlert,
+      kitchenAlertAt: order.kitchenAlertAt,
     });
   }
 
@@ -822,6 +1134,349 @@ export async function getCashierTables(): Promise<
 
 export async function seedRestaurantState(state: RestaurantState): Promise<void> {
   await saveState(state);
+}
+
+export async function cancelOrderItem(
+  tableNumber: number,
+  itemId: string
+): Promise<Order> {
+  const order = await getActiveOrder(tableNumber);
+  if (!order) throw new Error("Pedido não encontrado");
+
+  const item = order.items.find((entry) => entry.id === itemId);
+  if (!item) throw new Error("Item não encontrado");
+  if (item.status === "cancelado") throw new Error("Item já cancelado");
+  if (item.status === "entregue") {
+    throw new Error("Não é possível cancelar item já entregue");
+  }
+  if (item.status === "pronto") {
+    throw new Error("Não é possível cancelar — o prato já está pronto na cozinha");
+  }
+
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  await db
+    .update(orderItems)
+    .set({ status: "cancelado" })
+    .where(eq(orderItems.id, itemId));
+
+  await db
+    .update(orders)
+    .set({ updatedAt: now })
+    .where(eq(orders.id, order.id));
+
+  if (
+    canModifyAfterKitchen(item) &&
+    !item.skipKitchen &&
+    !item.isAddon
+  ) {
+    await setKitchenAlertForItem(order.id, tableNumber, item, "CANCELAR");
+  }
+
+  await touchRestaurantUpdated(now);
+  return (await fetchOrderRows(order.id))!;
+}
+
+export async function updateOrderItemInOrder(
+  tableNumber: number,
+  itemId: string,
+  payload: UpdateOrderItemPayload
+): Promise<Order> {
+  const order = await getActiveOrder(tableNumber);
+  if (!order) throw new Error("Pedido não encontrado");
+
+  const item = order.items.find((entry) => entry.id === itemId);
+  if (!item) throw new Error("Item não encontrado");
+  if (item.isAddon) throw new Error("Extras no prato são geridos pelo prato principal");
+  if (item.status === "cancelado") throw new Error("Item cancelado");
+  if (item.status === "entregue") {
+    throw new Error("Não é possível alterar item já entregue");
+  }
+  if (item.status === "pronto") {
+    throw new Error("Não é possível alterar — o prato já está pronto na cozinha");
+  }
+
+  const menuItem = await getCatalogItem(item.menuItemId);
+  if (!menuItem) throw new Error("Item do menu não encontrado");
+
+  const catalog = await loadCatalog();
+  const resolveItem = (id: string) => catalog.items.find((i) => i.id === id);
+
+  const nextCustomizations = payload.customizations ?? item.customizations;
+  const nextNotes = payload.notes !== undefined ? payload.notes : item.notes;
+  const nextQuantity =
+    payload.quantity !== undefined
+      ? Math.max(1, Math.min(20, payload.quantity))
+      : item.quantity;
+
+  if (
+    item.status === "em_preparacao" &&
+    payload.quantity !== undefined &&
+    nextQuantity !== item.quantity
+  ) {
+    throw new Error(
+      "Não é possível alterar quantidade — prato já na cozinha"
+    );
+  }
+
+  if (menuItem.optionGroups) {
+    for (const group of menuItem.optionGroups) {
+      if (group.required) {
+        const hasSelection = nextCustomizations.some(
+          (customization) => customization.groupId === group.id
+        );
+        if (!hasSelection) {
+          throw new Error(`Seleção obrigatória: ${group.label}`);
+        }
+      }
+    }
+  }
+
+  const changed =
+    nextQuantity !== item.quantity ||
+    nextNotes !== item.notes ||
+    customizationsKey(nextCustomizations) !==
+      customizationsKey(item.customizations);
+
+  if (!changed) return order;
+
+  item.quantity = nextQuantity;
+  item.customizations = nextCustomizations;
+  item.notes = nextNotes;
+  item.price = calculateItemPrice(menuItem, nextCustomizations, resolveItem);
+  item.ingredients = menuItem.skipKitchen
+    ? []
+    : buildKitchenChoices(menuItem, nextCustomizations);
+
+  await updateOrderItemRecord(item);
+
+  const now = new Date().toISOString();
+  const db = getDb();
+  await db
+    .update(orders)
+    .set({ updatedAt: now })
+    .where(eq(orders.id, order.id));
+
+  if (canModifyAfterKitchen(item) && !item.skipKitchen) {
+    await setKitchenAlertForItem(order.id, tableNumber, item, "ALTERACAO");
+  }
+
+  await touchRestaurantUpdated(now);
+  return (await fetchOrderRows(order.id))!;
+}
+
+export async function transferTable(
+  fromTableNumber: number,
+  toTableNumber: number
+): Promise<{ fromTable: Table; toTable: Table; order: Order }> {
+  assertTableNumber(fromTableNumber);
+  assertTableNumber(toTableNumber);
+
+  if (fromTableNumber === toTableNumber) {
+    throw new Error("Escolha uma mesa diferente");
+  }
+
+  const db = getDb();
+  const [fromTableRow] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, fromTableNumber))
+    .limit(1);
+  const [toTableRow] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, toTableNumber))
+    .limit(1);
+
+  if (!fromTableRow) throw new Error("Mesa de origem não encontrada");
+  if (!toTableRow) throw new Error("Mesa de destino não encontrada");
+  if (!fromTableRow.orderId) throw new Error("Mesa de origem sem pedido activo");
+
+  const toActive = await getActiveOrder(toTableNumber);
+  if (toActive) throw new Error("Mesa de destino já está ocupada");
+
+  const order = await fetchOrderRows(fromTableRow.orderId);
+  if (!order || order.paidAt) throw new Error("Pedido não encontrado");
+
+  const now = new Date().toISOString();
+
+  await db
+    .update(orders)
+    .set({ tableNumber: toTableNumber, updatedAt: now })
+    .where(eq(orders.id, order.id));
+
+  const [updatedToTable] = await db
+    .update(restaurantTables)
+    .set({
+      status: fromTableRow.status,
+      orderId: order.id,
+      guestCount: fromTableRow.guestCount,
+      openedAt: fromTableRow.openedAt,
+    })
+    .where(
+      and(
+        eq(restaurantTables.number, toTableNumber),
+        eq(restaurantTables.status, "livre"),
+        isNull(restaurantTables.orderId)
+      )
+    )
+    .returning();
+
+  if (!updatedToTable) {
+    throw new Error("Mesa de destino já não está livre");
+  }
+
+  await db
+    .update(restaurantTables)
+    .set({
+      status: "livre",
+      orderId: null,
+      guestCount: null,
+      openedAt: null,
+    })
+    .where(eq(restaurantTables.number, fromTableNumber));
+
+  await setKitchenAlert(
+    order.id,
+    `Mesa ${fromTableNumber} transferida para mesa ${toTableNumber}`
+  );
+
+  await touchRestaurantUpdated(now);
+
+  const [updatedFromTable] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, fromTableNumber))
+    .limit(1);
+
+  const movedOrder = (await fetchOrderRows(order.id))!;
+  return {
+    fromTable: mapTable(updatedFromTable!),
+    toTable: mapTable(updatedToTable),
+    order: movedOrder,
+  };
+}
+
+export async function mergeTables(
+  primaryTableNumber: number,
+  secondaryTableNumber: number
+): Promise<{ primaryTable: Table; secondaryTable: Table; order: Order }> {
+  assertTableNumber(primaryTableNumber);
+  assertTableNumber(secondaryTableNumber);
+
+  if (primaryTableNumber === secondaryTableNumber) {
+    throw new Error("Escolha mesas diferentes");
+  }
+
+  const db = getDb();
+  const [primaryTableRow] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, primaryTableNumber))
+    .limit(1);
+  const [secondaryTableRow] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, secondaryTableNumber))
+    .limit(1);
+
+  if (!primaryTableRow?.orderId) {
+    throw new Error("Mesa principal sem pedido activo");
+  }
+  if (!secondaryTableRow?.orderId) {
+    throw new Error("Mesa secundária sem pedido activo");
+  }
+
+  const primaryOrder = await fetchOrderRows(primaryTableRow.orderId);
+  const secondaryOrder = await fetchOrderRows(secondaryTableRow.orderId);
+
+  if (!primaryOrder || primaryOrder.paidAt) {
+    throw new Error("Pedido principal não encontrado");
+  }
+  if (!secondaryOrder || secondaryOrder.paidAt) {
+    throw new Error("Pedido secundário não encontrado");
+  }
+
+  const secondaryOrderId = secondaryOrder.id;
+
+  const now = new Date().toISOString();
+
+  await db
+    .update(orderItems)
+    .set({ orderId: primaryOrder.id })
+    .where(eq(orderItems.orderId, secondaryOrderId));
+
+  await db
+    .update(restaurantTables)
+    .set({
+      status: "livre",
+      orderId: null,
+      guestCount: null,
+      openedAt: null,
+    })
+    .where(
+      and(
+        eq(restaurantTables.number, secondaryTableNumber),
+        eq(restaurantTables.orderId, secondaryOrderId)
+      )
+    );
+
+  await db.delete(orders).where(eq(orders.id, secondaryOrderId));
+
+  const mergedGuests =
+    (primaryTableRow.guestCount ?? 0) + (secondaryTableRow.guestCount ?? 0);
+
+  await db
+    .update(restaurantTables)
+    .set({
+      guestCount: mergedGuests > 0 ? mergedGuests : primaryTableRow.guestCount,
+      status:
+        primaryTableRow.status === "a_pagar" ||
+        secondaryTableRow.status === "a_pagar"
+          ? "a_pagar"
+          : "ocupada",
+    })
+    .where(eq(restaurantTables.number, primaryTableNumber));
+
+  await db
+    .update(restaurantTables)
+    .set({
+      status: "livre",
+      orderId: null,
+      guestCount: null,
+      openedAt: null,
+    })
+    .where(eq(restaurantTables.number, secondaryTableNumber));
+
+  await db
+    .update(orders)
+    .set({ updatedAt: now })
+    .where(eq(orders.id, primaryOrder.id));
+
+  await setKitchenAlert(
+    primaryOrder.id,
+    `Mesas ${primaryTableNumber} e ${secondaryTableNumber} juntadas numa conta (mesa ${primaryTableNumber})`
+  );
+
+  await touchRestaurantUpdated(now);
+
+  const [updatedPrimary] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, primaryTableNumber))
+    .limit(1);
+  const [updatedSecondary] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, secondaryTableNumber))
+    .limit(1);
+
+  return {
+    primaryTable: mapTable(updatedPrimary!),
+    secondaryTable: mapTable(updatedSecondary!),
+    order: (await fetchOrderRows(primaryOrder.id))!,
+  };
 }
 
 export { calculateOrderTotal } from "./utils";

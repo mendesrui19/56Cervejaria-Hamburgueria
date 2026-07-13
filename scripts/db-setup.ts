@@ -47,8 +47,28 @@ async function ensureSchema() {
       closed_at timestamptz,
       paid_at timestamptz,
       payment_method text,
-      tip numeric(10, 2)
+      tip numeric(10, 2),
+      kitchen_alert text,
+      kitchen_alert_at timestamptz,
+      payment_cash numeric(10, 2),
+      payment_card numeric(10, 2)
     )
+  `;
+
+  await sql`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS kitchen_alert text
+  `;
+
+  await sql`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS kitchen_alert_at timestamptz
+  `;
+
+  await sql`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_cash numeric(10, 2)
+  `;
+
+  await sql`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_card numeric(10, 2)
   `;
 
   await sql`

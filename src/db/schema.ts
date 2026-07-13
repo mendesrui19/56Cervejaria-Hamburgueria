@@ -46,6 +46,13 @@ export const orders = pgTable(
     paidAt: timestamp("paid_at", { withTimezone: true, mode: "string" }),
     paymentMethod: text("payment_method"),
     tip: numeric("tip", { precision: 10, scale: 2 }),
+    kitchenAlert: text("kitchen_alert"),
+    kitchenAlertAt: timestamp("kitchen_alert_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    paymentCash: numeric("payment_cash", { precision: 10, scale: 2 }),
+    paymentCard: numeric("payment_card", { precision: 10, scale: 2 }),
   },
   (table) => ({
     paidAtIdx: index("orders_paid_at_idx").on(table.paidAt),

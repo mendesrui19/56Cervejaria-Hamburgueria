@@ -97,6 +97,88 @@ export async function removeItem(tableNumber: number, itemId: string) {
   return res.json();
 }
 
+export async function cancelItem(tableNumber: number, itemId: string) {
+  const res = await apiFetch(`/api/orders/${tableNumber}/items/${itemId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cancel: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao cancelar item");
+  }
+  return res.json();
+}
+
+export async function updateOrderItem(
+  tableNumber: number,
+  itemId: string,
+  payload: {
+    quantity?: number;
+    customizations?: Array<{
+      groupId: string;
+      groupLabel: string;
+      optionId: string;
+      optionLabel: string;
+    }>;
+    notes?: string;
+  }
+) {
+  const res = await apiFetch(`/api/orders/${tableNumber}/items/${itemId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao atualizar item");
+  }
+  return res.json();
+}
+
+export async function transferTable(
+  fromTableNumber: number,
+  toTableNumber: number
+) {
+  const res = await apiFetch(`/api/tables/${fromTableNumber}/transfer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ toTableNumber }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao transferir mesa");
+  }
+  return res.json();
+}
+
+export async function mergeTables(
+  primaryTableNumber: number,
+  withTableNumber: number
+) {
+  const res = await apiFetch(`/api/tables/${primaryTableNumber}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ withTableNumber }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao juntar mesas");
+  }
+  return res.json();
+}
+
+export async function dismissKitchenAlert(orderId: string) {
+  const res = await apiFetch(`/api/kitchen/orders/${orderId}/alert`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao limpar alerta");
+  }
+  return res.json();
+}
+
 export async function sendToKitchen(tableNumber: number, itemIds?: string[]) {
   const res = await apiFetch(`/api/orders/${tableNumber}/send`, {
     method: "POST",
@@ -136,7 +218,12 @@ export async function requestBill(tableNumber: number) {
 
 export async function processPayment(
   tableNumber: number,
-  payload: { paymentMethod: string; tip?: number }
+  payload: {
+    paymentMethod: string;
+    tip?: number;
+    paymentCash?: number;
+    paymentCard?: number;
+  }
 ) {
   const res = await apiFetch(`/api/cashier/${tableNumber}/pay`, {
     method: "POST",
@@ -146,6 +233,29 @@ export async function processPayment(
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.error || "Erro ao processar pagamento");
+  }
+  return res.json();
+}
+
+export async function fetchRecentPayments() {
+  const res = await apiFetch("/api/cashier/recent", { cache: "no-store" });
+  if (!res.ok) throw new Error("Erro ao carregar pagamentos recentes");
+  return res.json();
+}
+
+export async function fetchDayClose() {
+  const res = await apiFetch("/api/cashier/close", { cache: "no-store" });
+  if (!res.ok) throw new Error("Erro ao carregar fecho do dia");
+  return res.json();
+}
+
+export async function voidPayment(orderId: string) {
+  const res = await apiFetch(`/api/cashier/orders/${orderId}/void`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao anular pagamento");
   }
   return res.json();
 }

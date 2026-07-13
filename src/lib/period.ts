@@ -164,6 +164,32 @@ export function formatPeriodShort(
   return ref.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
 }
 
+export function getPreviousPeriodReference(
+  period: AnalyticsPeriod,
+  reference = new Date()
+): Date {
+  const ref = parseDateParam(toDateParam(reference));
+
+  if (period === "day") {
+    ref.setDate(ref.getDate() - 1);
+    return ref;
+  }
+
+  if (period === "week") {
+    ref.setDate(ref.getDate() - 7);
+    return ref;
+  }
+
+  return new Date(ref.getFullYear(), ref.getMonth() - 1, 15);
+}
+
+export function getPreviousPeriodLabel(
+  period: AnalyticsPeriod,
+  reference = new Date()
+): string {
+  return formatPeriodLabel(period, getPreviousPeriodReference(period, reference));
+}
+
 export const PERIOD_OPTIONS: { id: AnalyticsPeriod; label: string }[] = [
   { id: "day", label: "Dia" },
   { id: "week", label: "Semana" },
