@@ -168,6 +168,19 @@ export async function mergeTables(
   return res.json();
 }
 
+export async function updateGuestCount(tableNumber: number, guestCount: number) {
+  const res = await apiFetch(`/api/tables/${tableNumber}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ guestCount }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao actualizar pessoas");
+  }
+  return res.json();
+}
+
 export async function dismissKitchenAlert(orderId: string) {
   const res = await apiFetch(`/api/kitchen/orders/${orderId}/alert`, {
     method: "DELETE",
@@ -354,5 +367,11 @@ export async function deleteCatalogItem(id: string) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Erro ao remover produto");
   }
+  return res.json();
+}
+
+export async function fetchAdminAudit() {
+  const res = await apiFetch("/api/admin/audit", { cache: "no-store" });
+  if (!res.ok) throw new Error("Erro ao carregar auditoria");
   return res.json();
 }

@@ -28,6 +28,7 @@ import {
   kitchenAlertTag,
   sortKitchenItems,
 } from "./kitchen-zones";
+import { recordAuditLog } from "./audit-log";
 import {
   formatKitchenItemLabel,
   resolveItemKitchenZone,
@@ -753,7 +754,58 @@ export async function removeOrderItem(
     .where(eq(orders.id, order.id));
   await touchRestaurantUpdated(now);
 
+  await recordAuditLog({
+    action: "item_remove",
+    actor: order.waiterName,
+    tableNumber,
+    orderId: order.id,
+    detail: `Removido ${item.quantity}× ${item.name} (mesa ${tableNumber})`,
+  });
+
   return (await fetchOrderRows(order.id))!;
+}
+
+export async function updateTableGuestCount(
+  tableNumber: number,
+  guestCount: number
+): Promise<Table> {
+  assertTableNumber(tableNumber);
+  const count = Math.max(1, Math.min(20, Math.floor(guestCount)));
+
+  const db = getDb();
+  const [tableRow] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, tableNumber))
+    .limit(1);
+
+  if (!tableRow) throw new Error("Mesa não encontrada");
+  if (!tableRow.orderId) throw new Error("Mesa sem pedido activo");
+
+  const order = await fetchOrderRows(tableRow.orderId);
+  if (!order) throw new Error("Pedido não encontrado");
+
+  const previous = tableRow.guestCount ?? 0;
+
+  const [updated] = await db
+    .update(restaurantTables)
+    .set({ guestCount: count })
+    .where(eq(restaurantTables.number, tableNumber))
+    .returning();
+
+  await touchRestaurantUpdated(new Date().toISOString());
+
+  if (previous !== count) {
+    await recordAuditLog({
+      action: "guest_count_update",
+      actor: order.waiterName,
+      tableNumber,
+      orderId: order.id,
+      detail: `Pessoas na mesa ${tableNumber}: ${previous || "?"} → ${count}`,
+    });
+  }
+
+  return mapTable(updated!);
 }
 
 export async function requestBill(tableNumber: number): Promise<Table> {
@@ -970,6 +1022,15 @@ export async function voidPayment(orderId: string): Promise<Order> {
     .where(eq(restaurantTables.number, order.tableNumber));
 
   await touchRestaurantUpdated(now);
+
+  await recordAuditLog({
+    action: "void_payment",
+    actor: order.waiterName,
+    tableNumber: order.tableNumber,
+    orderId: order.id,
+    detail: `Pagamento anulado — mesa ${order.tableNumber}`,
+  });
+
   return (await fetchOrderRows(order.id))!;
 }
 
@@ -996,6 +1057,7 @@ function toKitchenTicketItem(
     sentToKitchenAt: item.sentToKitchenAt,
     readyAt: item.readyAt,
     choices,
+    kitchenNotes: item.kitchenNotes,
     kitchenZone,
   };
 }
@@ -1174,6 +1236,14 @@ export async function cancelOrderItem(
     await setKitchenAlertForItem(order.id, tableNumber, item, "CANCELAR");
   }
 
+  await recordAuditLog({
+    action: "item_cancel",
+    actor: order.waiterName,
+    tableNumber,
+    orderId: order.id,
+    detail: `Cancelado ${item.quantity}× ${item.name} (mesa ${tableNumber})`,
+  });
+
   await touchRestaurantUpdated(now);
   return (await fetchOrderRows(order.id))!;
 }
@@ -1342,6 +1412,14 @@ export async function transferTable(
     `Mesa ${fromTableNumber} transferida para mesa ${toTableNumber}`
   );
 
+  await recordAuditLog({
+    action: "transfer_table",
+    actor: order.waiterName,
+    tableNumber: toTableNumber,
+    orderId: order.id,
+    detail: `Mesa ${fromTableNumber} → ${toTableNumber}`,
+  });
+
   await touchRestaurantUpdated(now);
 
   const [updatedFromTable] = await db
@@ -1458,6 +1536,14 @@ export async function mergeTables(
     primaryOrder.id,
     `Mesas ${primaryTableNumber} e ${secondaryTableNumber} juntadas numa conta (mesa ${primaryTableNumber})`
   );
+
+  await recordAuditLog({
+    action: "merge_tables",
+    actor: primaryOrder.waiterName,
+    tableNumber: primaryTableNumber,
+    orderId: primaryOrder.id,
+    detail: `Mesa ${secondaryTableNumber} juntada à mesa ${primaryTableNumber}`,
+  });
 
   await touchRestaurantUpdated(now);
 

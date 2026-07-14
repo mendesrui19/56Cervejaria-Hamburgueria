@@ -19,6 +19,9 @@ export function OnlineMenuSection() {
             <Link href="/carta" className="menu-section-cta">
               {copy.menu.openFull}
             </Link>
+            <Link href="/fidelizacao" className="menu-section-cta mt-3 inline-block opacity-90">
+              Cartão de fidelização
+            </Link>
           </div>
 
           <MenuBookCoverPreview />

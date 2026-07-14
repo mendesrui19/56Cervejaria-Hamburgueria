@@ -2,11 +2,20 @@
 
 import Link from "next/link";
 
-export type AdminSection = "relatorios" | "historico" | "catalogo";
+export type AdminSection =
+  | "relatorios"
+  | "operacoes"
+  | "historico"
+  | "auditoria"
+  | "fidelizacao"
+  | "catalogo";
 
 const NAV: { id: AdminSection; label: string; desc: string }[] = [
   { id: "relatorios", label: "Relatórios", desc: "Dia, semana e mês" },
+  { id: "operacoes", label: "Operações", desc: "Mapa de mesas live" },
   { id: "historico", label: "Histórico", desc: "Contas e detalhe" },
+  { id: "auditoria", label: "Auditoria", desc: "Cancelamentos e acções" },
+  { id: "fidelizacao", label: "Fidelização", desc: "Cartão de selos" },
   { id: "catalogo", label: "Catálogo", desc: "Preços e menu" },
 ];
 
@@ -111,12 +120,12 @@ export function AdminLayout({
       </div>
 
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-brand-line bg-white/95 backdrop-blur-md safe-bottom">
-        <div className="grid grid-cols-3 gap-1 p-2">
+        <div className="flex overflow-x-auto gap-1 p-2 scrollbar-thin">
           {NAV.map((item) => (
             <button
               key={item.id}
               onClick={() => onSection(item.id)}
-              className={`rounded-xl py-2.5 px-1 text-center touch-manipulation min-h-[52px] ${
+              className={`shrink-0 rounded-xl py-2.5 px-3 text-center touch-manipulation min-h-[52px] min-w-[72px] ${
                 section === item.id
                   ? "bg-brand-gold text-white"
                   : "text-brand-muted"

@@ -1,15 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AdminAuditLog } from "@/components/admin/AdminAuditLog";
 import { AdminHistory } from "@/components/admin/AdminHistory";
 import { AdminLayout, type AdminSection } from "@/components/admin/AdminLayout";
 import { AdminLiveBar } from "@/components/admin/AdminLiveBar";
+import { AdminLoyalty } from "@/components/admin/AdminLoyalty";
 import { AdminReports } from "@/components/admin/AdminReports";
+import { AdminTableMap } from "@/components/admin/AdminTableMap";
 import { PeriodSelector } from "@/components/admin/PeriodSelector";
 import {
   createCatalogItem,
   deleteCatalogItem,
   fetchAdminAnalytics,
+  fetchAdminAudit,
   fetchAdminCatalog,
   fetchAdminHistory,
   updateCatalogItem,
@@ -19,6 +23,7 @@ import { toDateParam } from "@/lib/period";
 import type {
   AdminKPIs,
   AnalyticsPeriod,
+  AuditLogEntry,
   MenuCatalog,
   MenuCategory,
   MenuItem,
@@ -33,9 +38,21 @@ const SECTION_META: Record<
     title: "Relatórios",
     subtitle: "Faturação, caixa, comparações e tendências",
   },
+  operacoes: {
+    title: "Operações",
+    subtitle: "Mapa de mesas em tempo real",
+  },
   historico: {
     title: "Histórico",
     subtitle: "Contas fechadas com detalhe e exportação",
+  },
+  auditoria: {
+    title: "Auditoria",
+    subtitle: "Cancelamentos, transferências e anulações",
+  },
+  fidelizacao: {
+    title: "Fidelização",
+    subtitle: "Membros, selos e impacto da app de clientes",
   },
   catalogo: {
     title: "Catálogo",
@@ -389,10 +406,17 @@ export default function AdminView() {
   const [kpis, setKpis] = useState<AdminKPIs | null>(null);
   const [history, setHistory] = useState<OrderHistoryEntry[]>([]);
   const [catalog, setCatalog] = useState<MenuCatalog | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const loadData = useCallback(async () => {
+    if (section === "operacoes" || section === "fidelizacao") {
+      setLoading(false);
+      setError("");
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -400,7 +424,9 @@ export default function AdminView() {
         setKpis(await fetchAdminAnalytics(period, anchorDate));
       } else if (section === "historico") {
         setHistory(await fetchAdminHistory(period, { date: anchorDate }));
-      } else {
+      } else if (section === "auditoria") {
+        setAuditLogs(await fetchAdminAudit());
+      } else if (section === "catalogo") {
         setCatalog(await fetchAdminCatalog());
       }
     } catch (e) {
@@ -441,10 +467,12 @@ export default function AdminView() {
         <p className="text-red-400 text-sm mb-4 text-center">{error}</p>
       )}
 
-      {loading ? (
+      {loading && section !== "operacoes" && section !== "fidelizacao" ? (
         <div className="flex items-center justify-center py-24 text-brand-muted">
           A carregar…
         </div>
+      ) : section === "operacoes" ? (
+        <AdminTableMap />
       ) : section === "relatorios" && kpis ? (
         <>
           {showLive && <AdminLiveBar />}
@@ -456,6 +484,10 @@ export default function AdminView() {
           period={period}
           anchorDate={anchorDate}
         />
+      ) : section === "auditoria" ? (
+        <AdminAuditLog logs={auditLogs} />
+      ) : section === "fidelizacao" ? (
+        <AdminLoyalty />
       ) : section === "catalogo" && catalog ? (
         <CatalogSection catalog={catalog} onSaved={loadData} />
       ) : null}

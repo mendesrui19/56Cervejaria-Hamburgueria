@@ -274,7 +274,10 @@ export async function getAdminKPIs(
   const itemMap = new Map<string, { quantity: number; revenue: number }>();
   const tableMap = new Map<number, { orders: number; revenue: number }>();
   const paymentMap = new Map<PaymentMethod, { count: number; amount: number }>();
-  const waiterMap = new Map<string, { orders: number; revenue: number }>();
+  const waiterMap = new Map<
+    string,
+    { orders: number; revenue: number; tips: number }
+  >();
 
   for (const order of orders) {
     const orderSub = orderSubtotal(order);
@@ -290,9 +293,14 @@ export async function getAdminKPIs(
     table.revenue += orderRev;
     tableMap.set(order.tableNumber, table);
 
-    const waiter = waiterMap.get(order.waiterName) ?? { orders: 0, revenue: 0 };
+    const waiter = waiterMap.get(order.waiterName) ?? {
+      orders: 0,
+      revenue: 0,
+      tips: 0,
+    };
     waiter.orders += 1;
     waiter.revenue += orderRev;
+    waiter.tips += orderTip;
     waiterMap.set(order.waiterName, waiter);
 
     if (order.paymentMethod) {
@@ -341,7 +349,13 @@ export async function getAdminKPIs(
       ...data,
     })),
     byWaiter: [...waiterMap.entries()]
-      .map(([name, data]) => ({ name, ...data }))
+      .map(([name, data]) => ({
+        name,
+        orders: data.orders,
+        revenue: data.revenue,
+        tips: data.tips,
+        avgTicket: data.orders > 0 ? data.revenue / data.orders : 0,
+      }))
       .sort((a, b) => b.revenue - a.revenue),
     payments: computePaymentBreakdown(orders),
     byDay: buildByDay(orders, period, reference),

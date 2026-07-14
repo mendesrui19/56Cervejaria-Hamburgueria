@@ -5,7 +5,13 @@ import {
   verifySessionToken,
 } from "@/lib/auth";
 
-const PROTECTED_PAGE_PREFIXES = ["/empregado", "/cozinha", "/caixa", "/admin"];
+const PROTECTED_PAGE_PREFIXES = [
+  "/empregado",
+  "/cozinha",
+  "/caixa",
+  "/admin",
+  "/fidelizacao/scanner",
+];
 const PROTECTED_API_PREFIXES = [
   "/api/state",
   "/api/tables",
@@ -14,6 +20,7 @@ const PROTECTED_API_PREFIXES = [
   "/api/cashier",
   "/api/menu",
   "/api/admin",
+  "/api/loyalty",
 ];
 
 function isProtectedPath(pathname: string): boolean {
@@ -53,6 +60,8 @@ export const config = {
     "/cozinha/:path*",
     "/caixa/:path*",
     "/admin/:path*",
+    "/fidelizacao/scanner/:path*",
+    "/api/loyalty/:path*",
     "/api/menu",
     "/api/admin/:path*",
     "/api/state",

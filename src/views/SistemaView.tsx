@@ -38,6 +38,14 @@ const roles = [
       "Gerir catálogo e preços, histórico de mesas e KPIs do restaurante.",
     color: "from-blue-50 to-white",
   },
+  {
+    href: "/fidelizacao/scanner",
+    title: "Fidelização",
+    abbr: "FID",
+    description:
+      "Ler QR do cliente e adicionar selos ao cartão de fidelização.",
+    color: "from-purple-50 to-white",
+  },
 ];
 
 function safeNextPath(next: string | null): string | null {

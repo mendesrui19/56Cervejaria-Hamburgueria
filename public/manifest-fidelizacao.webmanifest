@@ -1,0 +1,19 @@
+{
+  "name": "Cinquenta & Seis — Fidelização",
+  "short_name": "Selos CS56",
+  "description": "Cartão de fidelização Cinquenta & Seis. Junta selos e ganha recompensas.",
+  "start_url": "/fidelizacao",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1a1410",
+  "theme_color": "#8f6814",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -10,7 +10,7 @@ import {
   playKitchenAlertSound,
   playNewOrderSound,
 } from "@/lib/kitchen-sound";
-import { formatWaitTime } from "@/lib/time";
+import { formatWaitTime, getWaitTimeLevel, WAIT_TIME_BADGE } from "@/lib/time";
 import type { KitchenTicketItem } from "@/lib/types";
 import { usePolling } from "@/hooks/usePolling";
 
@@ -46,6 +46,10 @@ function KitchenItemCard({
   onStatusChange: (itemId: string, status: string) => void;
 }) {
   const itemWait = formatWaitTime(item.sentToKitchenAt);
+  const waitLevel =
+    item.status === "em_preparacao"
+      ? getWaitTimeLevel(item.sentToKitchenAt)
+      : null;
   const isEntrada = item.kitchenZone === "entradas";
 
   return (
@@ -69,12 +73,27 @@ function KitchenItemCard({
             {item.quantity > 1 && `${item.quantity}× `}
             {item.name}
           </h3>
-          {itemWait && item.status === "em_preparacao" && (
-            <p className="text-sm font-bold text-amber-800 mt-1">{itemWait}</p>
+          {itemWait && item.status === "em_preparacao" && waitLevel && (
+            <span
+              className={`inline-block mt-1 text-sm font-black px-2.5 py-1 rounded-lg border ${WAIT_TIME_BADGE[waitLevel].className}`}
+            >
+              {itemWait}
+            </span>
           )}
         </div>
         <ItemStatusBadge status={item.status} size="lg" />
       </div>
+
+      {item.kitchenNotes && (
+        <div className="rounded-xl bg-indigo-50 border-2 border-indigo-300 px-4 py-3 mb-3">
+          <p className="text-sm text-indigo-900 font-black uppercase tracking-wide">
+            Instrução de preparação
+          </p>
+          <p className="text-base sm:text-lg text-indigo-950 font-bold mt-1 leading-snug">
+            {item.kitchenNotes}
+          </p>
+        </div>
+      )}
 
       {item.choices.length > 0 && (
         <div className="mb-3">
@@ -158,6 +177,7 @@ function KitchenTicket({
   const waitLabel = oldestPrepTime(items);
 
   const isActive = items.some((i) => i.status === "em_preparacao");
+  const waitLevel = isActive ? getWaitTimeLevel(sentAt) : null;
   const isReady =
     items.length > 0 && items.every((i) => i.status === "pronto");
   const hasAlert = Boolean(order.kitchenAlert);
@@ -185,8 +205,12 @@ function KitchenTicket({
         <p className="text-brand-muted text-base sm:text-lg mt-2 font-medium">
           {order.waiterName}
           {clockTime && ` · ${clockTime}`}
-          {waitLabel && (
-            <span className="text-amber-800 font-bold"> · {waitLabel}</span>
+          {waitLabel && waitLevel && (
+            <span
+              className={`font-bold ml-1 px-2 py-0.5 rounded-md border ${WAIT_TIME_BADGE[waitLevel].className}`}
+            >
+              · {waitLabel}
+            </span>
           )}
         </p>
       </div>

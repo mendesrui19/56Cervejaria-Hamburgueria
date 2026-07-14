@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ItemStatusBadge } from "@/components/StatusBadge";
 import {
@@ -25,7 +26,7 @@ interface PedidoPageProps {
   onCancelItem: (id: string) => void;
   onEditItem: (item: OrderItem) => void;
   onUpdateQuantity: (id: string, quantity: number) => void;
-  onSendToKitchen: () => void;
+  onSendToKitchen: (itemIds?: string[]) => void;
   onTableActions: () => void;
   nested?: boolean;
 }
@@ -37,6 +38,9 @@ function ItemRow({
   onCancel,
   onEdit,
   onUpdateQuantity,
+  selectable,
+  selected,
+  onToggleSelect,
 }: {
   item: OrderItem;
   menuItems: MenuItem[];
@@ -44,6 +48,9 @@ function ItemRow({
   onCancel: (id: string) => void;
   onEdit: (item: OrderItem) => void;
   onUpdateQuantity: (id: string, quantity: number) => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const menuItem = menuItems.find((entry) => entry.id === item.menuItemId);
   const isPending = item.status === "pendente";
@@ -54,9 +61,22 @@ function ItemRow({
   const canCancelKitchen = inPreparation && !item.skipKitchen;
 
   return (
-    <div className="rounded-2xl bg-white border border-brand-line p-4 shadow-sm">
+    <div
+      className={`rounded-2xl bg-white border p-4 shadow-sm ${
+        selected ? "border-brand-gold ring-2 ring-brand-gold/30" : "border-brand-line"
+      }`}
+    >
       <div className="flex justify-between gap-3">
         <div className="flex-1 min-w-0">
+          {selectable && (
+            <button
+              type="button"
+              onClick={onToggleSelect}
+              className="mb-2 text-xs font-bold text-brand-gold touch-manipulation"
+            >
+              {selected ? "✓ Seleccionado para cozinha" : "Seleccionar para cozinha"}
+            </button>
+          )}
           <p className="font-bold text-brand-gold text-base">
             {item.quantity > 1 && `${item.quantity}× `}
             {item.name}
@@ -169,9 +189,46 @@ export function PedidoPage({
   onTableActions,
   nested = false,
 }: PedidoPageProps) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+
   const items = order.items.filter(
     (i) => i.status !== "cancelado" && !i.isAddon
   );
+
+  const pendingKitchenItems = useMemo(
+    () =>
+      items.filter(
+        (item) => !item.skipKitchen && item.status === "pendente"
+      ),
+    [items]
+  );
+
+  const selectedPending = pendingKitchenItems.filter((item) =>
+    selectedIds.has(item.id)
+  );
+
+  function toggleItem(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllPending() {
+    setSelectedIds(new Set(pendingKitchenItems.map((item) => item.id)));
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  function handleSendSelected() {
+    if (selectedPending.length === 0) return;
+    onSendToKitchen(selectedPending.map((item) => item.id));
+    setSelectedIds(new Set());
+  }
 
   return (
     <ScreenPage nested={nested}>
@@ -214,17 +271,44 @@ export function PedidoPage({
               </button>
             </div>
           ) : (
-            items.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                menuItems={menuItems}
-                onRemove={onRemoveItem}
-                onCancel={onCancelItem}
-                onEdit={onEditItem}
-                onUpdateQuantity={onUpdateQuantity}
-              />
-            ))
+            <>
+              {pendingKitchenItems.length > 1 && (
+                <div className="flex flex-wrap gap-2 mb-1">
+                  <button
+                    type="button"
+                    onClick={selectAllPending}
+                    className="text-xs font-semibold text-brand-gold"
+                  >
+                    Seleccionar todos pendentes
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearSelection}
+                      className="text-xs font-semibold text-brand-muted"
+                    >
+                      Limpar selecção
+                    </button>
+                  )}
+                </div>
+              )}
+              {items.map((item) => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  menuItems={menuItems}
+                  onRemove={onRemoveItem}
+                  onCancel={onCancelItem}
+                  onEdit={onEditItem}
+                  onUpdateQuantity={onUpdateQuantity}
+                  selectable={
+                    !item.skipKitchen && item.status === "pendente"
+                  }
+                  selected={selectedIds.has(item.id)}
+                  onToggleSelect={() => toggleItem(item.id)}
+                />
+              ))}
+            </>
           )}
         </div>
       </ScreenBody>
@@ -241,13 +325,25 @@ export function PedidoPage({
           </div>
 
           {pendingCount > 0 && (
-            <button
-              onClick={onSendToKitchen}
-              disabled={loading}
-              className="btn-primary w-full text-base"
-            >
-              Enviar {pendingCount} à Cozinha
-            </button>
+            <div className="space-y-2">
+              {selectedPending.length > 0 && (
+                <button
+                  onClick={handleSendSelected}
+                  disabled={loading}
+                  className="btn-secondary w-full text-base"
+                >
+                  Enviar {selectedPending.length} seleccionado
+                  {selectedPending.length > 1 ? "s" : ""} à Cozinha
+                </button>
+              )}
+              <button
+                onClick={() => onSendToKitchen()}
+                disabled={loading}
+                className="btn-primary w-full text-base"
+              >
+                Enviar {pendingCount} à Cozinha
+              </button>
+            </div>
           )}
         </ScreenFooter>
       )}
@@ -258,20 +354,24 @@ export function PedidoPage({
 interface MesaActionsPageProps {
   tableNumber: number;
   tables: Table[];
+  guestCount?: number;
   loading: boolean;
   onBack: () => void;
   onTransfer: (toTableNumber: number) => void;
   onMerge: (withTableNumber: number) => void;
+  onGuestCountChange: (count: number) => void;
   nested?: boolean;
 }
 
 export function MesaActionsPage({
   tableNumber,
   tables,
+  guestCount = 2,
   loading,
   onBack,
   onTransfer,
   onMerge,
+  onGuestCountChange,
   nested = false,
 }: MesaActionsPageProps) {
   const freeTables = tables.filter(
@@ -296,6 +396,38 @@ export function MesaActionsPage({
 
       <ScreenBody>
         <div className="p-4 space-y-6">
+          <section>
+            <h2 className="text-sm font-bold text-brand-gold mb-2">
+              Nº de pessoas
+            </h2>
+            <div className="flex items-center justify-between rounded-2xl border border-brand-line bg-white px-4 py-3">
+              <span className="text-sm text-brand-muted font-semibold">
+                Pessoas na mesa
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => onGuestCountChange(Math.max(1, guestCount - 1))}
+                  className="min-w-[44px] min-h-[44px] rounded-full border border-brand-line text-brand-gold"
+                >
+                  −
+                </button>
+                <span className="text-2xl font-black text-brand-gold w-8 text-center tabular-nums">
+                  {guestCount}
+                </span>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => onGuestCountChange(Math.min(20, guestCount + 1))}
+                  className="min-w-[44px] min-h-[44px] rounded-full border border-brand-line text-brand-gold"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </section>
+
           <section>
             <h2 className="text-sm font-bold text-brand-gold mb-2">
               Transferir para mesa livre

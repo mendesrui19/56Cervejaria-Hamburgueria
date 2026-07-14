@@ -85,7 +85,26 @@ export interface KitchenTicketItem {
   sentToKitchenAt?: string;
   readyAt?: string;
   choices: string[];
+  kitchenNotes?: string;
   kitchenZone?: KitchenZone;
+}
+
+export type AuditAction =
+  | "item_cancel"
+  | "item_remove"
+  | "void_payment"
+  | "transfer_table"
+  | "merge_tables"
+  | "guest_count_update";
+
+export interface AuditLogEntry {
+  id: number;
+  action: AuditAction;
+  actor: string;
+  tableNumber?: number;
+  orderId?: string;
+  detail: string;
+  createdAt: string;
 }
 
 export interface Order {
@@ -225,7 +244,13 @@ export interface AdminKPIs {
   topItems: Array<{ name: string; quantity: number; revenue: number }>;
   byTable: Array<{ tableNumber: number; orders: number; revenue: number }>;
   byPayment: Array<{ method: PaymentMethod; count: number; amount: number }>;
-  byWaiter: Array<{ name: string; orders: number; revenue: number }>;
+  byWaiter: Array<{
+    name: string;
+    orders: number;
+    revenue: number;
+    tips: number;
+    avgTicket: number;
+  }>;
   payments: AdminPaymentBreakdown;
   byDay: AdminDailyRow[];
   byHour: AdminHourlyRow[];

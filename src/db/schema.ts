@@ -120,6 +120,101 @@ export const menuCategories = pgTable("menu_categories", {
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: serial("id").primaryKey(),
+    action: text("action").notNull(),
+    actor: text("actor").notNull().default("Staff"),
+    tableNumber: integer("table_number"),
+    orderId: uuid("order_id"),
+    detail: text("detail").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => ({
+    createdAtIdx: index("audit_logs_created_at_idx").on(table.createdAt),
+  })
+);
+
+export const loyaltyMembers = pgTable(
+  "loyalty_members",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    phone: text("phone"),
+    birthDate: text("birth_date"),
+    memberCode: text("member_code").notNull().unique(),
+    pinHash: text("pin_hash"),
+    avatarUrl: text("avatar_url"),
+    currentStamps: integer("current_stamps").notNull().default(0),
+    lifetimeStamps: integer("lifetime_stamps").notNull().default(0),
+    bonusClaimedMonth: text("bonus_claimed_month"),
+    referredByMemberId: uuid("referred_by_member_id"),
+    referralBonusPaid: boolean("referral_bonus_paid").notNull().default(false),
+    milestone20Granted: boolean("milestone_20_granted").notNull().default(false),
+    milestone30Granted: boolean("milestone_30_granted").notNull().default(false),
+    birthdayRewardYear: integer("birthday_reward_year"),
+    streakBonusWeek: text("streak_bonus_week"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => ({
+    memberCodeIdx: index("loyalty_members_member_code_idx").on(table.memberCode),
+  })
+);
+
+export const loyaltyStampEvents = pgTable(
+  "loyalty_stamp_events",
+  {
+    id: serial("id").primaryKey(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => loyaltyMembers.id, { onDelete: "cascade" }),
+    stampsAdded: integer("stamps_added").notNull(),
+    isBonus: boolean("is_bonus").notNull().default(false),
+    rewardUnlocked: boolean("reward_unlocked").notNull().default(false),
+    reason: text("reason"),
+    addedBy: text("added_by"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => ({
+    memberIdIdx: index("loyalty_stamp_events_member_id_idx").on(table.memberId),
+    createdAtIdx: index("loyalty_stamp_events_created_at_idx").on(
+      table.createdAt
+    ),
+  })
+);
+
+export const loyaltyRewards = pgTable(
+  "loyalty_rewards",
+  {
+    id: serial("id").primaryKey(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => loyaltyMembers.id, { onDelete: "cascade" }),
+    rewardType: text("reward_type").notNull().default("entrada"),
+    unlockedAt: timestamp("unlocked_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    redeemedAt: timestamp("redeemed_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+  },
+  (table) => ({
+    memberIdIdx: index("loyalty_rewards_member_id_idx").on(table.memberId),
+  })
+);
+
 export const menuItems = pgTable(
   "menu_items",
   {

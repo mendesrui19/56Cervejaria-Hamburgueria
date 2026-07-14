@@ -17,6 +17,7 @@ import {
   removeItem,
   sendToKitchen,
   transferTable,
+  updateGuestCount,
   updateOrderItem,
 } from "@/lib/api";
 import {
@@ -131,6 +132,8 @@ export function WaiterTableFlow({
       );
 
       if (hasActiveOrder) {
+        const tableGuest = state?.tables.find((t) => t.number === n)?.guestCount;
+        if (tableGuest) setGuestCount(tableGuest);
         setScreen("menu");
       } else if (table?.status === "livre") {
         setScreen("abrir");
@@ -207,21 +210,44 @@ export function WaiterTableFlow({
     [selectedTable, currentOrder, doAddItem]
   );
 
-  const handleSendToKitchen = useCallback(async () => {
-    if (!selectedTable || pendingCount === 0) return;
-    setLoading(true);
-    try {
-      await sendToKitchen(selectedTable);
-      setToast(
-        `${pendingCount} enviado${pendingCount > 1 ? "s" : ""} à cozinha`
-      );
-      refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro");
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedTable, pendingCount, refresh]);
+  const handleSendToKitchen = useCallback(
+    async (itemIds?: string[]) => {
+      if (!selectedTable || pendingCount === 0) return;
+      const count = itemIds?.length ?? pendingCount;
+      setLoading(true);
+      try {
+        await sendToKitchen(selectedTable, itemIds);
+        setToast(
+          `${count} enviado${count > 1 ? "s" : ""} à cozinha`
+        );
+        refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [selectedTable, pendingCount, refresh]
+  );
+
+  const handleGuestCountChange = useCallback(
+    async (count: number) => {
+      if (!selectedTable) return;
+      setLoading(true);
+      setError("");
+      try {
+        await updateGuestCount(selectedTable, count);
+        setGuestCount(count);
+        await refresh();
+        setToast(`Mesa actualizada: ${count} pessoas`);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [selectedTable, refresh]
+  );
 
   const handleRemoveItem = useCallback(
     async (itemId: string) => {
@@ -437,10 +463,12 @@ export function WaiterTableFlow({
         <MesaActionsPage
           tableNumber={selectedTable}
           tables={state?.tables ?? []}
+          guestCount={currentTable?.guestCount ?? guestCount}
           loading={loading}
           onBack={() => setScreen("pedido")}
           onTransfer={handleTransfer}
           onMerge={handleMerge}
+          onGuestCountChange={handleGuestCountChange}
           nested={nested}
         />
       </>
@@ -542,7 +570,7 @@ export function WaiterTableFlow({
         {pendingCount > 0 && (
           <ScreenFooter compact={nested}>
             <button
-              onClick={handleSendToKitchen}
+              onClick={() => handleSendToKitchen()}
               disabled={loading}
               className="btn-primary w-full text-base"
             >

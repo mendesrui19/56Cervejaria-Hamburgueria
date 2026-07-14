@@ -37,8 +37,10 @@ export function StaffPwa({
   const [dismissed, setDismissed] = useState(false);
   const [installed, setInstalled] = useState(false);
   const [showIosHint, setShowIosHint] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     setInstalled(isStandalone());
 
     if ("serviceWorker" in navigator) {
@@ -96,8 +98,10 @@ export function StaffPwa({
     setInstallEvent(null);
   }, [installEvent, installed]);
 
-  const showAndroidBanner = Boolean(installEvent) && !installed && !dismissed;
+  const showAndroidBanner =
+    mounted && Boolean(installEvent) && !installed && !dismissed;
   const showIosBanner =
+    mounted &&
     (showIosHint || (isIos() && !installed && !dismissed && !installEvent)) &&
     !dismissed;
 

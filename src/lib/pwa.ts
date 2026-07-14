@@ -19,3 +19,14 @@ export const SISTEMA_PWA: StaffPwaConfig = {
   themeColor: "#B8860B",
   backgroundColor: "#F8F6F2",
 };
+
+export const FIDELIZACAO_PWA: StaffPwaConfig = {
+  id: "fidelizacao",
+  title: "Cinquenta & Seis — Fidelização",
+  shortName: "Selos CS56",
+  description: "Cartão de fidelização. Junta selos e ganha recompensas.",
+  startUrl: "/fidelizacao",
+  manifestPath: "/manifest-fidelizacao.webmanifest",
+  themeColor: "#8f6814",
+  backgroundColor: "#1a1410",
+};

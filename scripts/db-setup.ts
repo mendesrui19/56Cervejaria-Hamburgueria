@@ -158,6 +158,87 @@ async function ensureSchema() {
   await sql`
     CREATE INDEX IF NOT EXISTS menu_items_active_idx ON menu_items (active)
   `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id serial PRIMARY KEY,
+      action text NOT NULL,
+      actor text NOT NULL DEFAULT 'Staff',
+      table_number integer,
+      order_id uuid,
+      detail text NOT NULL,
+      created_at timestamptz NOT NULL
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs (created_at)
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS loyalty_members (
+      id uuid PRIMARY KEY,
+      name text NOT NULL,
+      phone text,
+      birth_date text,
+      member_code text NOT NULL UNIQUE,
+      pin_hash text,
+      avatar_url text,
+      current_stamps integer NOT NULL DEFAULT 0,
+      bonus_claimed_month text,
+      created_at timestamptz NOT NULL
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS loyalty_members_member_code_idx ON loyalty_members (member_code)
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS loyalty_stamp_events (
+      id serial PRIMARY KEY,
+      member_id uuid NOT NULL REFERENCES loyalty_members(id) ON DELETE CASCADE,
+      stamps_added integer NOT NULL,
+      is_bonus boolean NOT NULL DEFAULT false,
+      reward_unlocked boolean NOT NULL DEFAULT false,
+      added_by text,
+      created_at timestamptz NOT NULL
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS loyalty_stamp_events_member_id_idx ON loyalty_stamp_events (member_id)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS loyalty_stamp_events_created_at_idx ON loyalty_stamp_events (created_at)
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS loyalty_rewards (
+      id serial PRIMARY KEY,
+      member_id uuid NOT NULL REFERENCES loyalty_members(id) ON DELETE CASCADE,
+      unlocked_at timestamptz NOT NULL,
+      redeemed_at timestamptz
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS loyalty_rewards_member_id_idx ON loyalty_rewards (member_id)
+  `;
+
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS birth_date text`;
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS pin_hash text`;
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS avatar_url text`;
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS lifetime_stamps integer NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS referred_by_member_id uuid`;
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS referral_bonus_paid boolean NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS milestone_20_granted boolean NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS milestone_30_granted boolean NOT NULL DEFAULT false`;
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS birthday_reward_year integer`;
+  await sql`ALTER TABLE loyalty_members ADD COLUMN IF NOT EXISTS streak_bonus_week text`;
+  await sql`ALTER TABLE loyalty_stamp_events ADD COLUMN IF NOT EXISTS reason text`;
+  await sql`ALTER TABLE loyalty_rewards ADD COLUMN IF NOT EXISTS reward_type text NOT NULL DEFAULT 'entrada'`;
 }
 
 async function main() {

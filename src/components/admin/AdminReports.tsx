@@ -316,21 +316,33 @@ export function AdminReports({ kpis, anchorDate }: AdminReportsProps) {
 
         <div className="card">
           <h3 className="text-sm font-bold text-brand-gold mb-3 uppercase tracking-wide">
-            Por empregado
+            Ranking empregados
           </h3>
           <div className="space-y-2">
             {kpis.byWaiter.length === 0 ? (
               <p className="text-brand-muted text-sm">Sem dados</p>
             ) : (
-              kpis.byWaiter.map((row) => (
+              kpis.byWaiter.map((row, index) => (
                 <div
                   key={row.name}
-                  className="flex justify-between gap-3 text-sm"
+                  className="flex items-start justify-between gap-3 text-sm rounded-xl bg-brand-surface/60 px-3 py-2.5"
                 >
-                  <span className="text-brand-muted truncate">
-                    {row.name} · {row.orders}
-                  </span>
-                  <span className="text-brand-gold font-semibold tabular-nums">
+                  <div className="min-w-0">
+                    <p className="text-brand-gold font-bold truncate">
+                      {index < 3 && (
+                        <span className="text-brand-muted font-semibold mr-1.5">
+                          {index + 1}.º
+                        </span>
+                      )}
+                      {row.name}
+                    </p>
+                    <p className="text-xs text-brand-muted mt-0.5">
+                      {row.orders} conta{row.orders !== 1 ? "s" : ""} · ticket médio{" "}
+                      {formatPrice(row.avgTicket)}
+                      {row.tips > 0 ? ` · gorjetas ${formatPrice(row.tips)}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-brand-gold font-semibold shrink-0 tabular-nums">
                     {formatPrice(row.revenue)}
                   </span>
                 </div>
