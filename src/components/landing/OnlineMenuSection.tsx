@@ -16,12 +16,14 @@ export function OnlineMenuSection() {
             <h2 className="menu-section-title">{copy.menu.title}</h2>
             <p className="menu-section-subtitle">{copy.menu.subtitle}</p>
             <p className="menu-section-note">{copy.menu.qrHint}</p>
-            <Link href="/carta" className="menu-section-cta">
-              {copy.menu.openFull}
-            </Link>
-            <Link href="/fidelizacao" className="menu-section-cta mt-3 inline-block opacity-90">
-              Cartão de fidelização
-            </Link>
+            <div className="menu-section-cta-group">
+              <Link href="/carta" className="menu-section-cta">
+                {copy.menu.openFull}
+              </Link>
+              <Link href="/fidelizacao" className="menu-section-cta menu-section-cta--secondary">
+                Cartão de fidelização
+              </Link>
+            </div>
           </div>
 
           <MenuBookCoverPreview />

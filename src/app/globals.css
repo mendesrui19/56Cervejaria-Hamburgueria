@@ -1951,6 +1951,12 @@ html.site-ready .landing-hero-scroll {
   margin-bottom: 1.75rem;
 }
 
+.menu-section-cta-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .menu-section-cta {
   display: inline-flex;
   align-items: center;
@@ -1973,6 +1979,18 @@ html.site-ready .landing-hero-scroll {
   border-color: #dfc07a;
   transform: translateY(-2px);
   box-shadow: 0 12px 36px rgba(201, 169, 97, 0.35);
+}
+
+.menu-section-cta--secondary {
+  background: transparent;
+  color: #c9a961;
+  box-shadow: none;
+}
+
+.menu-section-cta--secondary:hover {
+  background: rgba(201, 169, 97, 0.12);
+  color: #dfc07a;
+  border-color: #dfc07a;
 }
 
 .glovo-wordmark {
