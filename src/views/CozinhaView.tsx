@@ -11,6 +11,7 @@ import {
   playNewOrderSound,
 } from "@/lib/kitchen-sound";
 import { formatWaitTime, getWaitTimeLevel, WAIT_TIME_BADGE } from "@/lib/time";
+import { isBalcaoTable } from "@/lib/table-labels";
 import type { KitchenTicketItem } from "@/lib/types";
 import { usePolling } from "@/hooks/usePolling";
 
@@ -200,7 +201,9 @@ function KitchenTicket({
     >
       <div className="border-b border-brand-line pb-4 mb-4">
         <span className="text-4xl sm:text-5xl font-black text-brand-gold block leading-none">
-          MESA {order.tableNumber}
+          {isBalcaoTable(order.tableNumber)
+            ? "BALCÃO"
+            : `MESA ${order.tableNumber}`}
         </span>
         <p className="text-brand-muted text-base sm:text-lg mt-2 font-medium">
           {order.waiterName}

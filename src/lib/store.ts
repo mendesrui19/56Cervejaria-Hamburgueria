@@ -442,7 +442,9 @@ export async function addItemToOrder(
   }
 
   if (tableRow?.status === "a_pagar" && !menuItem.skipKitchen) {
-    throw new Error("Mesa a pagar — só bar/bebidas");
+    throw new Error(
+      "Conta pedida — só bebidas. Usa «Nova ronda» para voltar a pedir comida."
+    );
   }
 
   const catalog = await loadCatalog();
@@ -570,9 +572,16 @@ export async function addItemToOrder(
     .update(orders)
     .set({ updatedAt: now })
     .where(eq(orders.id, order.id));
+
+  // Bebidas com conta pedida: manter a_pagar para a caixa não perder o pedido
+  const nextTableStatus =
+    tableRow?.status === "a_pagar" && menuItem.skipKitchen
+      ? "a_pagar"
+      : "ocupada";
+
   await db
     .update(restaurantTables)
-    .set({ status: "ocupada" })
+    .set({ status: nextTableStatus })
     .where(eq(restaurantTables.number, tableNumber));
   await touchRestaurantUpdated(now);
 
@@ -809,7 +818,23 @@ export async function updateTableGuestCount(
 }
 
 export async function requestBill(tableNumber: number): Promise<Table> {
+  assertTableNumber(tableNumber);
   const db = getDb();
+
+  const [table] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, tableNumber))
+    .limit(1);
+
+  if (!table) throw new Error("Mesa não encontrada");
+  if (table.status === "livre" || !table.orderId) {
+    throw new Error("Mesa sem pedido activo");
+  }
+  if (table.status === "a_pagar") {
+    return mapTable(table);
+  }
+
   const [updatedTable] = await db
     .update(restaurantTables)
     .set({ status: "a_pagar" })
@@ -819,8 +844,163 @@ export async function requestBill(tableNumber: number): Promise<Table> {
   if (!updatedTable) throw new Error("Mesa não encontrada");
 
   const now = new Date().toISOString();
+  await recordAuditLog({
+    action: "request_bill",
+    tableNumber,
+    orderId: table.orderId,
+    detail: `Conta pedida — mesa ${tableNumber}`,
+  });
   await touchRestaurantUpdated(now);
   return mapTable(updatedTable);
+}
+
+/** Volta a mesa de «a pagar» para «ocupada» — nova ronda de comida/serviço. */
+export async function reopenTableRound(
+  tableNumber: number,
+  actor?: string
+): Promise<Table> {
+  assertTableNumber(tableNumber);
+  const db = getDb();
+
+  const [table] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, tableNumber))
+    .limit(1);
+
+  if (!table) throw new Error("Mesa não encontrada");
+  if (table.status === "livre" || !table.orderId) {
+    throw new Error("Mesa sem pedido activo");
+  }
+  if (table.status !== "a_pagar") {
+    return mapTable(table);
+  }
+
+  const [updatedTable] = await db
+    .update(restaurantTables)
+    .set({ status: "ocupada" })
+    .where(eq(restaurantTables.number, tableNumber))
+    .returning();
+
+  if (!updatedTable) throw new Error("Mesa não encontrada");
+
+  const now = new Date().toISOString();
+  await recordAuditLog({
+    action: "reopen_round",
+    actor: actor?.trim() || "Staff",
+    tableNumber,
+    orderId: table.orderId,
+    detail: `Nova ronda — mesa ${tableNumber} voltou a ocupada`,
+  });
+  await touchRestaurantUpdated(now);
+  return mapTable(updatedTable);
+}
+
+export async function clearTable(
+  tableNumber: number,
+  actor?: string
+): Promise<Table> {
+  assertTableNumber(tableNumber);
+  const db = getDb();
+
+  const [table] = await db
+    .select()
+    .from(restaurantTables)
+    .where(eq(restaurantTables.number, tableNumber))
+    .limit(1);
+
+  if (!table) throw new Error("Mesa não encontrada");
+  if (table.status === "livre" && !table.orderId) {
+    return mapTable(table);
+  }
+  if (!table.orderId) {
+    const [freed] = await db
+      .update(restaurantTables)
+      .set({
+        status: "livre",
+        orderId: null,
+        guestCount: null,
+        openedAt: null,
+      })
+      .where(eq(restaurantTables.number, tableNumber))
+      .returning();
+    await touchRestaurantUpdated(new Date().toISOString());
+    return mapTable(freed!);
+  }
+
+  const order = await fetchOrderRows(table.orderId);
+  if (!order) throw new Error("Pedido não encontrado");
+  if (order.paidAt) throw new Error("Pedido já pago");
+
+  const activeItems = order.items.filter(
+    (item) => item.status !== "cancelado" && !item.isAddon
+  );
+  const blocked = activeItems.filter(
+    (item) =>
+      !item.skipKitchen &&
+      (item.status === "pronto" || item.status === "entregue")
+  );
+  if (blocked.length > 0) {
+    throw new Error(
+      "Há pratos prontos ou entregues. Cancela na cozinha ou paga a conta."
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  for (const item of activeItems) {
+    if (item.status === "pendente" || item.skipKitchen) {
+      await db.delete(orderItems).where(eq(orderItems.id, item.id));
+      continue;
+    }
+
+    // em_preparacao → cancelar com alerta
+    await db
+      .update(orderItems)
+      .set({ status: "cancelado" })
+      .where(eq(orderItems.id, item.id));
+
+    if (!item.skipKitchen && !item.isAddon) {
+      await setKitchenAlertForItem(order.id, tableNumber, item, "CANCELAR");
+    }
+  }
+
+  // limpar addons órfãos
+  await db.delete(orderItems).where(
+    and(eq(orderItems.orderId, order.id), eq(orderItems.isAddon, true))
+  );
+
+  await db
+    .update(orders)
+    .set({
+      closedAt: now,
+      updatedAt: now,
+      kitchenAlert: null,
+      kitchenAlertAt: null,
+    })
+    .where(eq(orders.id, order.id));
+
+  const [freed] = await db
+    .update(restaurantTables)
+    .set({
+      status: "livre",
+      orderId: null,
+      guestCount: null,
+      openedAt: null,
+    })
+    .where(eq(restaurantTables.number, tableNumber))
+    .returning();
+
+  await recordAuditLog({
+    action: "clear_table",
+    actor: actor || order.waiterName,
+    tableNumber,
+    orderId: order.id,
+    detail: `Mesa ${tableNumber} fechada sem pagamento (erro / vazia)`,
+  });
+
+  await touchRestaurantUpdated(now);
+  return mapTable(freed!);
 }
 
 export async function processPayment(
@@ -848,8 +1028,22 @@ export async function processPayment(
     .filter((item) => item.status !== "cancelado" && !item.isAddon)
     .reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+  const loyaltyDiscount = Math.max(
+    0,
+    Math.min(
+      subtotal,
+      Math.round((Number(payload.loyaltyDiscount) || 0) * 100) / 100
+    )
+  );
+
+  if (loyaltyDiscount > 0) {
+    if (!payload.loyaltyMemberId || !payload.loyaltyRewardId) {
+      throw new Error("Recompensa App 56 incompleta");
+    }
+  }
+
   const now = new Date().toISOString();
-  const total = subtotal + tip;
+  const total = Math.round((subtotal - loyaltyDiscount + tip) * 100) / 100;
 
   let paymentCash: string | null = null;
   let paymentCard: string | null = null;
@@ -899,6 +1093,25 @@ export async function processPayment(
     .returning();
 
   await touchRestaurantUpdated(now);
+
+  if (
+    loyaltyDiscount > 0 &&
+    payload.loyaltyMemberId &&
+    payload.loyaltyRewardId
+  ) {
+    const { redeemLoyaltyReward } = await import("./loyalty-store");
+    await redeemLoyaltyReward(
+      payload.loyaltyMemberId,
+      payload.loyaltyRewardId
+    );
+    await recordAuditLog({
+      action: "loyalty_redeem",
+      actor: order.waiterName,
+      tableNumber,
+      orderId: order.id,
+      detail: `Recompensa #${payload.loyaltyRewardId} (−${loyaltyDiscount.toFixed(2)}€) na mesa ${tableNumber}`,
+    });
+  }
 
   const finalOrder = (await fetchOrderRows(order.id))!;
   return {

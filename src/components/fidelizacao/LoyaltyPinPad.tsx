@@ -49,8 +49,8 @@ export function LoyaltyPinPad({
   return (
     <div className="loyalty-pin-pad">
       <div className="text-center mb-6">
-        <p className="text-sm font-semibold text-white">{title}</p>
-        {subtitle && <p className="text-xs text-white/50 mt-1">{subtitle}</p>}
+        <p className="loyalty-pin-title">{title}</p>
+        {subtitle && <p className="loyalty-pin-subtitle">{subtitle}</p>}
       </div>
 
       <div className="flex justify-center gap-3 mb-6">
@@ -62,7 +62,7 @@ export function LoyaltyPinPad({
         ))}
       </div>
 
-      {error && <p className="text-center text-red-300 text-sm mb-4">{error}</p>}
+      {error && <p className="loyalty-error text-center text-sm mb-4">{error}</p>}
 
       <div className="grid grid-cols-3 gap-2.5">
         {KEYS.map((key, idx) => {
@@ -115,7 +115,7 @@ export function LoyaltyPinPadControlled({
 
   return (
     <div>
-      {label && <p className="text-xs text-white/50 mb-3">{label}</p>}
+      {label && <p className="loyalty-pin-subtitle mb-3">{label}</p>}
       <div className="flex justify-center gap-2 mb-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div

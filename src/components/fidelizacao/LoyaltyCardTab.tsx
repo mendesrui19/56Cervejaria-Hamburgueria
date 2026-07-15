@@ -1,7 +1,7 @@
 "use client";
 
 import { LoyaltyAvatar } from "@/components/fidelizacao/LoyaltyAvatar";
-import { LoyaltyChallenges } from "@/components/fidelizacao/LoyaltyChallenges";
+import { LoyaltyGlovoCard } from "@/components/fidelizacao/LoyaltyGlovoCard";
 import { LoyaltyRewardsRail } from "@/components/fidelizacao/LoyaltyRewardsRail";
 import { StampGrid } from "@/components/fidelizacao/StampGrid";
 import type { LoyaltyMemberProfile } from "@/lib/loyalty";
@@ -10,14 +10,17 @@ export function LoyaltyCardTab({
   member,
   pulseIndex,
   onOpenQr,
+  onOpenChallenges,
   onRedeem,
 }: {
   member: LoyaltyMemberProfile;
   pulseIndex?: number | null;
   onOpenQr: () => void;
+  onOpenChallenges: () => void;
   onRedeem: (rewardId: number) => void;
 }) {
   const remaining = Math.max(0, member.stampsTarget - member.currentStamps);
+  const firstName = member.name.split(" ")[0];
 
   return (
     <div className="loyalty-tab-panel">
@@ -25,7 +28,7 @@ export function LoyaltyCardTab({
         <div className="loyalty-hero-top">
           <LoyaltyAvatar member={member} size="md" />
           <div className="min-w-0 flex-1">
-            <p className="loyalty-hero-greeting">Olá, {member.name.split(" ")[0]}</p>
+            <p className="loyalty-hero-greeting">Olá, {firstName}</p>
             <h2 className="loyalty-hero-stamps">
               {member.currentStamps}
               <span className="loyalty-hero-stamps-total">/{member.stampsTarget}</span>
@@ -55,7 +58,22 @@ export function LoyaltyCardTab({
       </section>
 
       <LoyaltyRewardsRail member={member} onRedeem={onRedeem} />
-      <LoyaltyChallenges member={member} />
+
+      <button
+        type="button"
+        className="loyalty-shortcut-card"
+        onClick={onOpenChallenges}
+      >
+        <div>
+          <p className="loyalty-section-kicker">Desafios</p>
+          <p className="loyalty-shortcut-title">Ver progresso e bónus</p>
+        </div>
+        <span className="loyalty-shortcut-arrow" aria-hidden="true">
+          →
+        </span>
+      </button>
+
+      <LoyaltyGlovoCard />
     </div>
   );
 }

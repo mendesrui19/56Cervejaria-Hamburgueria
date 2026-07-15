@@ -21,11 +21,11 @@ export const SISTEMA_PWA: StaffPwaConfig = {
 };
 
 export const FIDELIZACAO_PWA: StaffPwaConfig = {
-  id: "fidelizacao",
-  title: "Cinquenta & Seis — Fidelização",
-  shortName: "Selos CS56",
-  description: "Cartão de fidelização. Junta selos e ganha recompensas.",
-  startUrl: "/fidelizacao",
+  id: "app56",
+  title: "Cinquenta & Seis — App 56",
+  shortName: "App 56",
+  description: "App 56. Junta selos e ganha recompensas.",
+  startUrl: "/app",
   manifestPath: "/manifest-fidelizacao.webmanifest",
   themeColor: "#8f6814",
   backgroundColor: "#1a1410",

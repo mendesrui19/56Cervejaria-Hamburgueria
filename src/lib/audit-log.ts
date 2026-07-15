@@ -1,15 +1,9 @@
 import { desc } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { auditLogs } from "@/db/schema";
-import type { AuditLogEntry } from "@/lib/types";
+import type { AuditAction, AuditLogEntry } from "@/lib/types";
 
-export type AuditAction =
-  | "item_cancel"
-  | "item_remove"
-  | "void_payment"
-  | "transfer_table"
-  | "merge_tables"
-  | "guest_count_update";
+export type { AuditAction };
 
 export async function recordAuditLog(entry: {
   action: AuditAction;

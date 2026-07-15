@@ -10,7 +10,7 @@ const PROTECTED_PAGE_PREFIXES = [
   "/cozinha",
   "/caixa",
   "/admin",
-  "/fidelizacao/scanner",
+  "/app/scanner",
 ];
 const PROTECTED_API_PREFIXES = [
   "/api/state",
@@ -60,7 +60,7 @@ export const config = {
     "/cozinha/:path*",
     "/caixa/:path*",
     "/admin/:path*",
-    "/fidelizacao/scanner/:path*",
+    "/app/scanner/:path*",
     "/api/loyalty/:path*",
     "/api/menu",
     "/api/admin/:path*",

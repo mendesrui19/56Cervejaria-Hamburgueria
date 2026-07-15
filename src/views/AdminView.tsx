@@ -51,7 +51,7 @@ const SECTION_META: Record<
     subtitle: "Cancelamentos, transferências e anulações",
   },
   fidelizacao: {
-    title: "Fidelização",
+    title: "App 56",
     subtitle: "Membros, selos e impacto da app de clientes",
   },
   catalogo: {

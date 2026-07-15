@@ -15,7 +15,7 @@ const NAV: { id: AdminSection; label: string; desc: string }[] = [
   { id: "operacoes", label: "Operações", desc: "Mapa de mesas live" },
   { id: "historico", label: "Histórico", desc: "Contas e detalhe" },
   { id: "auditoria", label: "Auditoria", desc: "Cancelamentos e acções" },
-  { id: "fidelizacao", label: "Fidelização", desc: "Cartão de selos" },
+  { id: "fidelizacao", label: "App 56", desc: "Cartão de selos" },
   { id: "catalogo", label: "Catálogo", desc: "Preços e menu" },
 ];
 

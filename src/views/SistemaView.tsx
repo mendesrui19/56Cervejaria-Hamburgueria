@@ -39,11 +39,11 @@ const roles = [
     color: "from-blue-50 to-white",
   },
   {
-    href: "/fidelizacao/scanner",
-    title: "Fidelização",
-    abbr: "FID",
+    href: "/app/scanner",
+    title: "App 56",
+    abbr: "56",
     description:
-      "Ler QR do cliente e adicionar selos ao cartão de fidelização.",
+      "Ler QR do cliente e adicionar selos ao cartão App 56.",
     color: "from-purple-50 to-white",
   },
 ];

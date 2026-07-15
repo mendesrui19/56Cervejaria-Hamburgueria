@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { LOYALTY_STAMPS_TARGET } from "@/lib/loyalty";
 
 export function StampGrid({
@@ -23,10 +24,17 @@ export function StampGrid({
             className={`loyalty-stamp-slot ${filled ? "is-filled" : ""} ${
               pulsing ? "is-pulsing" : ""
             }`}
-            aria-hidden={!filled}
+            aria-label={filled ? `Selo ${index + 1}` : `Selo ${index + 1} vazio`}
           >
             {filled ? (
-              <span className="loyalty-stamp-mark" aria-hidden="true" />
+              <Image
+                src="/brand/selo-stamp.png"
+                alt=""
+                width={64}
+                height={64}
+                className="loyalty-stamp-img"
+                draggable={false}
+              />
             ) : (
               <span className="loyalty-stamp-empty">{index + 1}</span>
             )}

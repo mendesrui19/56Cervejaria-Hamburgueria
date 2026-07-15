@@ -21,11 +21,11 @@ const LEVEL_CLASS: Record<string, string> = {
 
 export function LoyaltyMemberExtras({ member }: { member: LoyaltyMemberProfile }) {
   async function shareInvite() {
-    const text = `Junta-te ao cartão de fidelização da Cinquenta & Seis! Usa o meu link e ganhamos selos extra: ${member.inviteUrl}`;
+    const text = `Junta-te à App 56 da Cinquenta & Seis! Usa o meu link e ganhamos selos extra: ${member.inviteUrl}`;
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Cartão Cinquenta & Seis",
+          title: "App 56 — Cinquenta & Seis",
           text,
           url: member.inviteUrl,
         });
@@ -94,7 +94,7 @@ export function LoyaltyMemberExtras({ member }: { member: LoyaltyMemberProfile }
       <div className="loyalty-challenge-card">
         <div className="flex items-center justify-between gap-2 mb-2">
           <p className="text-xs font-black uppercase tracking-widest text-emerald-200">
-            Racha semanal
+            Sequência semanal
           </p>
           <p className="text-xs text-white/50">
             {Math.min(member.streakWeeks, member.streakTarget)}/
@@ -111,16 +111,10 @@ export function LoyaltyMemberExtras({ member }: { member: LoyaltyMemberProfile }
         </div>
         <p className="text-xs text-white/60 mt-2">
           {member.streakEligible
-            ? "Visita esta semana e ganhas selo extra de racha!"
-            : `${member.streakTarget} semanas seguidas com visita = selo extra`}
+            ? "Visita esta semana e ganhas selo extra!"
+            : `${member.streakTarget} sequências semanais com visita = selo extra`}
         </p>
       </div>
-
-      {member.birthdayActive && (
-        <div className="loyalty-bonus-banner">
-          Aniversário — entrada grátis na próxima visita à caixa
-        </div>
-      )}
 
       <div className="loyalty-challenge-card">
         <p className="text-xs font-black uppercase tracking-widest text-brand-gold mb-3">

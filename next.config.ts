@@ -34,6 +34,16 @@ const nextConfig: NextConfig = {
         destination: "/favicon.png",
         permanent: false,
       },
+      {
+        source: "/fidelizacao",
+        destination: "/app",
+        permanent: true,
+      },
+      {
+        source: "/fidelizacao/:path*",
+        destination: "/app/:path*",
+        permanent: true,
+      },
     ];
   },
 };

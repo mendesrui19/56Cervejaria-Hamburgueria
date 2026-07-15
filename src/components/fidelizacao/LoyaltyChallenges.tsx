@@ -57,7 +57,7 @@ export function LoyaltyChallenges({ member }: { member: LoyaltyMemberProfile }) 
 
         <article className="loyalty-challenge-tile">
           <div className="loyalty-challenge-top">
-            <p className="loyalty-challenge-name">Racha semanal</p>
+            <p className="loyalty-challenge-name">Sequência semanal</p>
             <span className="loyalty-challenge-count">
               {streakProgress}/{member.streakTarget}
             </span>
@@ -73,16 +73,10 @@ export function LoyaltyChallenges({ member }: { member: LoyaltyMemberProfile }) 
           <p className="loyalty-challenge-copy">
             {member.streakEligible
               ? "Visita esta semana para selo extra"
-              : `${member.streakTarget} semanas seguidas → selo extra`}
+              : `${member.streakTarget} sequências semanais → selo extra`}
           </p>
         </article>
       </div>
-
-      {member.birthdayActive && (
-        <div className="loyalty-bonus-banner">
-          Aniversário — entrada grátis na próxima visita à caixa
-        </div>
-      )}
     </section>
   );
 }

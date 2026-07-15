@@ -1,6 +1,8 @@
 import type { OrderItemStatus, PaymentMethod } from "./types";
 
-export const TABLE_COUNT = 20;
+export const TABLE_COUNT = 21;
+/** Mesa virtual para pedidos de balcão / takeaway. */
+export const BALCAO_TABLE_NUMBER = 21;
 
 const PAYMENT_METHODS: PaymentMethod[] = [
   "dinheiro",

@@ -95,11 +95,11 @@ export function LoyaltyProfileTab({
   }
 
   async function shareInvite() {
-    const text = `Junta-te ao cartão Cinquenta & Seis: ${member.inviteUrl}`;
+    const text = `Junta-te à App 56 da Cinquenta & Seis: ${member.inviteUrl}`;
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Cartão Cinquenta & Seis",
+          title: "App 56 — Cinquenta & Seis",
           text,
           url: member.inviteUrl,
         });
@@ -241,8 +241,12 @@ export function LoyaltyProfileTab({
         </button>
       </section>
 
-      {error && <p className="text-red-300 text-sm text-center">{error}</p>}
-      {success && <p className="text-emerald-300 text-sm text-center">{success}</p>}
+      {error && <p className="loyalty-error text-sm text-center">{error}</p>}
+      {success && (
+        <p className="text-sm text-center font-semibold" style={{ color: "#15803d" }}>
+          {success}
+        </p>
+      )}
     </div>
   );
 }

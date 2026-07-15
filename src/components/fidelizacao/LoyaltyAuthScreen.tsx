@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { LoyaltyPinPad } from "@/components/fidelizacao/LoyaltyPinPad";
 import {
@@ -101,10 +102,18 @@ export function LoyaltyAuthScreen({
     <div className="loyalty-app">
       <div className="loyalty-shell loyalty-shell-auth">
         <header className="loyalty-brand-head">
+          <Image
+            src="/brand/logo.png"
+            alt="Cinquenta & Seis"
+            width={72}
+            height={72}
+            priority
+            className="loyalty-brand-logo"
+          />
           <p className="loyalty-brand-kicker">Cinquenta & Seis</p>
-          <h1 className="loyalty-brand-title">Cartão de Selos</h1>
+          <h1 className="loyalty-brand-title">App 56</h1>
           <p className="loyalty-brand-sub">
-            A tua app de fidelização — selos, recompensas e vantagens exclusivas.
+            Junta selos, desbloqueia recompensas e acompanha os teus desafios.
           </p>
         </header>
 
@@ -184,7 +193,7 @@ export function LoyaltyAuthScreen({
                 onChange={(e) => setBirthDate(e.target.value)}
               />
             </label>
-            {error && <p className="text-red-300 text-sm">{error}</p>}
+            {error && <p className="loyalty-error text-sm">{error}</p>}
             <button
               type="button"
               onClick={startRegisterPin}

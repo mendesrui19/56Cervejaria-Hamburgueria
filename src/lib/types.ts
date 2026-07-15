@@ -95,7 +95,11 @@ export type AuditAction =
   | "void_payment"
   | "transfer_table"
   | "merge_tables"
-  | "guest_count_update";
+  | "guest_count_update"
+  | "request_bill"
+  | "reopen_round"
+  | "clear_table"
+  | "loyalty_redeem";
 
 export interface AuditLogEntry {
   id: number;
@@ -163,6 +167,10 @@ export interface PaymentPayload {
   tip?: number;
   paymentCash?: number;
   paymentCard?: number;
+  /** Desconto de recompensa App 56 (€). */
+  loyaltyDiscount?: number;
+  loyaltyMemberId?: string;
+  loyaltyRewardId?: number;
 }
 
 export interface RecentPaymentEntry {

@@ -1,7 +1,16 @@
 "use client";
 
-import gsap from "gsap";
-import { useEffect, useMemo, useRef, useState } from "react";
+import "page-flip/src/Style/stPageFlip.css";
+import Image from "next/image";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { PageFlip } from "page-flip";
 import { useLandingLocale } from "@/contexts/LandingLocaleContext";
 import { usePublicMenu } from "@/hooks/usePublicMenu";
 import { formatPrice } from "@/lib/menu";
@@ -25,31 +34,48 @@ const DRINK_IDS = new Set([
   "gins",
 ]);
 
-type CategoryGroup = { category: MenuCategory; items: MenuItem[] };
-
-type PageSide = {
-  sectionStart?: "food" | "drinks";
-  groups: CategoryGroup[];
+type CategoryGroup = {
+  category: MenuCategory;
+  items: MenuItem[];
+  /** Continuação da secção na página seguinte (sem nota). */
+  continued?: boolean;
 };
 
-type ContentSpread = {
-  type: "spread";
-  left: PageSide;
-  right: PageSide | null;
-};
+type BookPage =
+  | { kind: "cover" }
+  | { kind: "section"; section: "food" | "drinks" }
+  | { kind: "content"; section: "food" | "drinks"; groups: CategoryGroup[] };
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
+/** Unidades de altura aproximadas para empacotar páginas sem espaço morto. */
+const PAGE_UNITS = {
+  header: 1.7,
+  headerContinued: 1.35,
+  note: 1.05,
+  item: 1,
+  itemDesc: 0.4,
+} as const;
+
+function itemUnits(item: MenuItem): number {
+  return PAGE_UNITS.item + (item.description?.trim() ? PAGE_UNITS.itemDesc : 0);
+}
+
+function headerUnits(category: MenuCategory, continued = false): number {
+  if (continued) return PAGE_UNITS.headerContinued;
+  return PAGE_UNITS.header + (category.note?.trim() ? PAGE_UNITS.note : 0);
+}
+
+function useIsNarrow() {
+  const [narrow, setNarrow] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsMobile(mq.matches);
+    const mq = window.matchMedia("(max-width: 900px)");
+    const update = () => setNarrow(mq.matches);
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  return isMobile;
+  return narrow;
 }
 
 function groupsForIds(catalog: MenuCatalog, ids: Set<string>): CategoryGroup[] {
@@ -64,288 +90,541 @@ function groupsForIds(catalog: MenuCatalog, ids: Set<string>): CategoryGroup[] {
     .filter((g) => g.items.length > 0);
 }
 
-function packPageSides(groups: CategoryGroup[], maxItems = 12): CategoryGroup[][] {
-  const sides: CategoryGroup[][] = [];
+/**
+ * Enche cada página ao máximo.
+ * - Se a secção cabe inteira → fica na página.
+ * - Se não cabe → preenche o espaço restante com o que couber e continua na seguinte
+ *   (só deixa espaço em branco se nem o cabeçalho + 1 item couberem).
+ */
+function packGroups(groups: CategoryGroup[], maxUnits: number): CategoryGroup[][] {
+  const pages: CategoryGroup[][] = [];
   let bucket: CategoryGroup[] = [];
-  let count = 0;
+  let used = 0;
+
+  const flush = () => {
+    if (bucket.length === 0) return;
+    pages.push(bucket);
+    bucket = [];
+    used = 0;
+  };
+
+  const takeChunk = (
+    remaining: MenuItem[],
+    roomForItems: number
+  ): { chunk: MenuItem[]; rest: MenuItem[] } => {
+    const chunk: MenuItem[] = [];
+    let cost = 0;
+    let i = 0;
+    while (i < remaining.length) {
+      const next = itemUnits(remaining[i]!);
+      if (chunk.length > 0 && cost + next > roomForItems + 0.05) break;
+      if (chunk.length === 0 && next > roomForItems) {
+        chunk.push(remaining[i]!);
+        i += 1;
+        break;
+      }
+      chunk.push(remaining[i]!);
+      cost += next;
+      i += 1;
+    }
+    return { chunk, rest: remaining.slice(i) };
+  };
 
   for (const group of groups) {
-    const size = group.items.length;
-    if (count > 0 && count + size > maxItems) {
-      sides.push(bucket);
-      bucket = [group];
-      count = size;
-    } else {
-      bucket.push(group);
-      count += size;
+    let remaining = [...group.items];
+    let continued = false;
+
+    while (remaining.length > 0) {
+      const head = headerUnits(group.category, continued);
+      const restCost = remaining.reduce((sum, item) => sum + itemUnits(item), 0);
+      const fullCost = head + restCost;
+
+      // Cabe tudo no espaço restante
+      if (used + fullCost <= maxUnits + 0.05) {
+        bucket.push({
+          category: group.category,
+          items: remaining,
+          continued,
+        });
+        used += fullCost;
+        remaining = [];
+        break;
+      }
+
+      // Não cabe o cabeçalho + pelo menos 1 item → nova página
+      const minNeed = head + itemUnits(remaining[0]!);
+      if (bucket.length > 0 && used + minNeed > maxUnits) {
+        flush();
+        continue;
+      }
+
+      // Preenche o resto da página com o que couber desta secção
+      const room = Math.max(maxUnits - used - head, PAGE_UNITS.item);
+      const { chunk, rest } = takeChunk(remaining, room);
+      if (chunk.length === 0) {
+        flush();
+        continue;
+      }
+
+      bucket.push({
+        category: group.category,
+        items: chunk,
+        continued,
+      });
+      used += head + chunk.reduce((sum, item) => sum + itemUnits(item), 0);
+      remaining = rest;
+      continued = true;
+
+      if (remaining.length > 0) flush();
     }
   }
 
-  if (bucket.length > 0) sides.push(bucket);
-  return sides;
-}
-
-function buildSectionSides(
-  groups: CategoryGroup[],
-  section: "food" | "drinks"
-): PageSide[] {
-  if (groups.length === 0) return [];
-
-  return packPageSides(groups, 12).map((bucket, index) => ({
-    sectionStart: index === 0 ? section : undefined,
-    groups: bucket,
-  }));
-}
-
-function buildBookSteps(catalog: MenuCatalog): ContentSpread[] {
-  const sides: PageSide[] = [
-    ...buildSectionSides(groupsForIds(catalog, FOOD_IDS), "food"),
-    ...buildSectionSides(groupsForIds(catalog, DRINK_IDS), "drinks"),
-  ];
-
-  const spreads: ContentSpread[] = [];
-  for (let i = 0; i < sides.length; i += 2) {
-    spreads.push({
-      type: "spread",
-      left: sides[i],
-      right: sides[i + 1] ?? null,
-    });
-  }
-  return spreads;
-}
-
-function flattenSpreads(spreads: ContentSpread[]): PageSide[] {
-  const pages: PageSide[] = [];
-  for (const spread of spreads) {
-    pages.push(spread.left);
-    if (spread.right) pages.push(spread.right);
-  }
+  flush();
   return pages;
 }
 
-function SectionBanner({ section }: { section: "food" | "drinks" }) {
+function buildBookPages(catalog: MenuCatalog, maxUnits: number): BookPage[] {
+  const food = groupsForIds(catalog, FOOD_IDS);
+  const drinks = groupsForIds(catalog, DRINK_IDS);
+  const pages: BookPage[] = [{ kind: "cover" }];
+
+  if (food.length > 0) {
+    pages.push({ kind: "section", section: "food" });
+    for (const groups of packGroups(food, maxUnits)) {
+      pages.push({ kind: "content", section: "food", groups });
+    }
+  }
+
+  if (drinks.length > 0) {
+    pages.push({ kind: "section", section: "drinks" });
+    for (const groups of packGroups(drinks, maxUnits)) {
+      pages.push({ kind: "content", section: "drinks", groups });
+    }
+  }
+
+  return pages;
+}
+
+function ArrowIcon({ direction }: { direction: "prev" | "next" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {direction === "prev" ? (
+        <path
+          d="M15 5 L8 12 L15 19"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : (
+        <path
+          d="M9 5 L16 12 L9 19"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  );
+}
+
+function CoverPage() {
+  const { copy } = useLandingLocale();
+
+  return (
+    <div className="menu-flip-cover">
+      <div className="menu-flip-cover-glow" aria-hidden="true" />
+      <div className="menu-flip-cover-frame" aria-hidden="true" />
+      <Image
+        src="/brand/logo.png"
+        alt=""
+        width={140}
+        height={140}
+        className="menu-flip-cover-logo"
+        priority
+      />
+      <h2 className="menu-flip-cover-title">Cinquenta &amp; Seis</h2>
+      <div className="menu-flip-cover-tagline-row">
+        <span className="menu-flip-cover-line" aria-hidden="true" />
+        <span className="menu-flip-cover-tagline">hamburgueria &amp; cervejaria</span>
+        <span className="menu-flip-cover-line" aria-hidden="true" />
+      </div>
+      <p className="menu-flip-cover-kicker">{copy.menu.bookPage}</p>
+      <p className="menu-flip-cover-hint">{copy.menu.tapToOpen}</p>
+    </div>
+  );
+}
+
+function SectionPage({ section }: { section: "food" | "drinks" }) {
   const { copy } = useLandingLocale();
   const isFood = section === "food";
 
   return (
-    <div className="menu-book-section-banner">
-      <h2 className="menu-book-section-banner-title">
+    <div className="menu-flip-section">
+      <div className="menu-flip-section-ornament" aria-hidden="true" />
+      <p className="menu-flip-section-kicker">{copy.menu.eyebrow}</p>
+      <h2 className="menu-flip-section-title">
         {isFood ? copy.menu.foodCover : copy.menu.drinksCover}
       </h2>
-      <p className="menu-book-section-banner-sub">
+      <span className="menu-flip-section-line" aria-hidden="true" />
+      <p className="menu-flip-section-sub">
         {isFood ? copy.menu.foodCoverSub : copy.menu.drinksCoverSub}
       </p>
     </div>
   );
 }
 
-function BookCategory({ category, items }: CategoryGroup) {
+function ContentPage({
+  groups,
+  pageNumber,
+}: {
+  groups: CategoryGroup[];
+  pageNumber: number;
+}) {
   return (
-    <div className="menu-book-category">
-      <h3 className="menu-book-category-title">{category.name}</h3>
-      {category.note && (
-        <p className="menu-book-category-note">{category.note}</p>
-      )}
-      <ul className="menu-book-list">
-        {items.map((item) => {
-          const desc = item.description?.trim();
-          return (
-            <li key={item.id} className="menu-book-item">
-              <div className="menu-book-item-line">
-                <span className="menu-book-item-name">{item.name}</span>
-                <span className="menu-book-item-leader" aria-hidden="true" />
-                <span className="menu-book-item-price">
-                  {formatPrice(item.price)}
-                </span>
-              </div>
-              {desc && <p className="menu-book-item-desc">{desc}</p>}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-function ContentPage({ page, side }: { page: PageSide; side: "left" | "right" }) {
-  return (
-    <div className={`menu-book-page menu-book-page-${side} menu-book-page-content`}>
-      <div className="menu-book-page-body">
-        {page.sectionStart && <SectionBanner section={page.sectionStart} />}
-        {page.groups.map((group) => (
-          <BookCategory key={group.category.id} {...group} />
+    <div className="menu-flip-content">
+      <div className="menu-flip-content-head">
+        <Image
+          src="/brand/logo.png"
+          alt=""
+          width={28}
+          height={28}
+          className="menu-flip-mini-logo"
+        />
+        <span className="menu-flip-page-num">{String(pageNumber).padStart(2, "0")}</span>
+      </div>
+      <div className="menu-flip-content-body">
+        {groups.map((group) => (
+          <div
+            key={`${group.category.id}-${group.items[0]?.id}`}
+            className="menu-book-category"
+          >
+            <h3 className="menu-book-category-title">{group.category.name}</h3>
+            {group.category.note && !group.continued && (
+              <p className="menu-book-category-note">{group.category.note}</p>
+            )}
+            <ul className="menu-book-list">
+              {group.items.map((item) => {
+                const desc = item.description?.trim();
+                return (
+                  <li key={item.id} className="menu-book-item">
+                    <div className="menu-book-item-line">
+                      <span className="menu-book-item-name">{item.name}</span>
+                      <span className="menu-book-item-leader" aria-hidden="true" />
+                      <span className="menu-book-item-price">
+                        {formatPrice(item.price)}
+                      </span>
+                    </div>
+                    {desc && <p className="menu-book-item-desc">{desc}</p>}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         ))}
       </div>
     </div>
   );
 }
 
+function FlipPageShell({
+  children,
+  variant = "content",
+  depth,
+}: {
+  children: ReactNode;
+  variant?: "cover" | "section" | "content";
+  depth: number;
+}) {
+  const isSpecial = variant === "cover" || variant === "section";
+  return (
+    <div
+      className={`menu-flip-page ${isSpecial ? "menu-flip-page--hard" : ""}`}
+      data-density="soft"
+      style={{ zIndex: depth }}
+    >
+      <div className="menu-flip-page-inner">{children}</div>
+    </div>
+  );
+}
+
 export function MenuBook() {
-  const [stepIndex, setStepIndex] = useState(0);
+  const bookRef = useRef<HTMLDivElement>(null);
+  const flipRef = useRef<PageFlip | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageCount, setPageCount] = useState(0);
+  const [ready, setReady] = useState(false);
   const [flipping, setFlipping] = useState(false);
-  const leftPageRef = useRef<HTMLDivElement>(null);
-  const rightPageRef = useRef<HTMLDivElement>(null);
-  const mobilePageRef = useRef<HTMLDivElement>(null);
-  const isMobile = useIsMobile();
+  const narrow = useIsNarrow();
   const { copy } = useLandingLocale();
   const { catalog, loading, error } = usePublicMenu();
 
-  const spreadSteps = useMemo(
-    () => (catalog ? buildBookSteps(catalog) : []),
-    [catalog]
+  const pages = useMemo(
+    () => (catalog ? buildBookPages(catalog, narrow ? 15.5 : 17.5) : []),
+    [catalog, narrow]
   );
 
-  const flatPages = useMemo(
-    () => flattenSpreads(spreadSteps),
-    [spreadSteps]
-  );
+  const destroyFlip = useCallback(() => {
+    const flip = flipRef.current;
+    const book = bookRef.current;
+    flipRef.current = null;
+    if (!flip) return;
 
-  const pages = isMobile ? flatPages : spreadSteps;
-  const totalPages = pages.length;
+    try {
+      // page-flip remove o bloco e leva as páginas consigo —
+      // devolver ao contentor antes do destroy
+      if (book) {
+        book.querySelectorAll(".menu-flip-page").forEach((page) => {
+          page.classList.remove(
+            "stf__item",
+            "--soft",
+            "--hard",
+            "--left",
+            "--right",
+            "--simple"
+          );
+          page.removeAttribute("style");
+          book.appendChild(page);
+        });
+        book.querySelectorAll(".stf__wrapper").forEach((el) => el.remove());
+        book.classList.remove("stf__parent");
+        book.removeAttribute("style");
+      }
+      flip.destroy();
+    } catch {
+      /* already destroyed */
+    }
+  }, []);
 
   useEffect(() => {
-    if (stepIndex >= totalPages && totalPages > 0) {
-      setStepIndex(totalPages - 1);
-    }
-  }, [stepIndex, totalPages]);
+    if (!catalog || pages.length === 0 || !bookRef.current) return;
 
-  const current = pages[stepIndex];
-  const isSingleSpread =
-    !isMobile &&
-    current &&
-    "type" in current &&
-    current.type === "spread" &&
-    !current.right;
+    let cancelled = false;
+    setReady(false);
 
-  const turnPage = (direction: "next" | "prev") => {
-    if (flipping) return;
-    const nextIndex = direction === "next" ? stepIndex + 1 : stepIndex - 1;
-    if (nextIndex < 0 || nextIndex >= totalPages) return;
+    const boot = async () => {
+      destroyFlip();
+      const { PageFlip } = await import("page-flip");
+      if (cancelled || !bookRef.current) return;
 
-    const reduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
+      const pageNodes = Array.from(
+        bookRef.current.querySelectorAll<HTMLElement>(".menu-flip-page")
+      );
+      if (pageNodes.length === 0) return;
 
-    if (reduced) {
-      setStepIndex(nextIndex);
-      return;
-    }
+      const width = narrow ? 320 : 440;
+      const height = narrow ? 500 : 620;
 
-    const page = isMobile
-      ? mobilePageRef.current
-      : isSingleSpread
-        ? leftPageRef.current
-        : direction === "next"
-          ? rightPageRef.current
-          : leftPageRef.current;
-
-    if (!page) {
-      setStepIndex(nextIndex);
-      return;
-    }
-
-    setFlipping(true);
-    const origin =
-      isSingleSpread || direction === "next" ? "left center" : "right center";
-    const outRotate = direction === "next" ? -90 : 90;
-    const inRotate = direction === "next" ? 90 : -90;
-
-    gsap
-      .timeline({ onComplete: () => setFlipping(false) })
-      .to(page, {
-        rotateY: outRotate,
-        duration: 0.42,
-        ease: "power2.in",
-        transformOrigin: origin,
-        zIndex: 10,
-        boxShadow: "0 16px 48px rgba(0,0,0,0.28)",
-      })
-      .call(() => setStepIndex(nextIndex))
-      .set(page, { rotateY: inRotate })
-      .to(page, {
-        rotateY: 0,
-        duration: 0.42,
-        ease: "power2.out",
-        zIndex: 2,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      const flip = new PageFlip(bookRef.current, {
+        width,
+        height,
+        size: "stretch",
+        minWidth: narrow ? 260 : 340,
+        maxWidth: narrow ? 400 : 500,
+        minHeight: narrow ? 400 : 500,
+        maxHeight: narrow ? 620 : 740,
+        drawShadow: true,
+        flippingTime: 1000,
+        usePortrait: narrow,
+        startZIndex: 2,
+        autoSize: true,
+        maxShadowOpacity: 0.55,
+        showCover: true,
+        mobileScrollSupport: true,
+        swipeDistance: 24,
+        clickEventForward: true,
+        useMouseEvents: true,
+        showPageCorners: true,
+        disableFlipByClick: false,
       });
-  };
 
-  const renderSpread = (step: ContentSpread) => {
-    const isSingle = !step.right;
+      flip.loadFromHTML(pageNodes);
 
+      const forceSoftPages = () => {
+        const count = flip.getPageCount();
+        for (let i = 0; i < count; i += 1) {
+          flip.getPage(i)?.setDensity?.("soft");
+        }
+      };
+
+      forceSoftPages();
+
+      flip.on("flip", (e) => {
+        setPageIndex(e.data);
+        setFlipping(false);
+      });
+      flip.on("changeState", (e) => {
+        const state = e.data as unknown as string;
+        if (state === "flipping" || state === "user_fold") setFlipping(true);
+        if (state === "read") setFlipping(false);
+      });
+      flip.on("changeOrientation", () => {
+        flip.update();
+        forceSoftPages();
+      });
+
+      if (cancelled) {
+        flipRef.current = flip;
+        destroyFlip();
+        return;
+      }
+
+      flipRef.current = flip;
+      setPageCount(flip.getPageCount());
+      setPageIndex(flip.getCurrentPageIndex());
+      setReady(true);
+    };
+
+    const timer = window.setTimeout(() => {
+      void boot();
+    }, 50);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      destroyFlip();
+      setReady(false);
+    };
+  }, [catalog, pages, narrow, destroyFlip]);
+
+  const canPrev = pageIndex > 0;
+  const canNext = pageIndex < Math.max(pageCount - 1, 0);
+
+  const goPrev = useCallback(() => {
+    if (!canPrev || !flipRef.current || flipping) return;
+    setFlipping(true);
+    flipRef.current.flipPrev("bottom");
+  }, [canPrev, flipping]);
+
+  const goNext = useCallback(() => {
+    if (!canNext || !flipRef.current || flipping) return;
+    setFlipping(true);
+    flipRef.current.flipNext("bottom");
+  }, [canNext, flipping]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goPrev();
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goNext();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goPrev, goNext]);
+
+  // Safety: unlock if flip event misses
+  useEffect(() => {
+    if (!flipping) return;
+    const t = window.setTimeout(() => setFlipping(false), 1000);
+    return () => window.clearTimeout(t);
+  }, [flipping]);
+
+  if (loading) {
     return (
-      <>
-        <div
-          ref={leftPageRef}
-          className="menu-book-page-shell menu-book-page-shell-left"
-        >
-          <ContentPage page={step.left} side="left" />
-        </div>
-        {step.right && (
-          <div
-            ref={rightPageRef}
-            className="menu-book-page-shell menu-book-page-shell-right"
-          >
-            <ContentPage page={step.right} side="right" />
-          </div>
-        )}
-      </>
+      <div className="menu-flip-stage">
+        <div className="menu-flip-state">{copy.menu.loading}</div>
+      </div>
     );
-  };
+  }
+
+  if (error || !catalog || pages.length === 0) {
+    return (
+      <div className="menu-flip-stage">
+        <div className="menu-flip-state">{copy.menu.unavailable}</div>
+      </div>
+    );
+  }
+
+  let contentPageNumber = 0;
+  const coverClosed = pageIndex === 0 && !flipping;
 
   return (
-    <div className="menu-book-stage-full">
-      <div className="menu-book-nav">
+    <div className={`menu-flip-stage ${ready ? "is-ready" : ""}`}>
+      <div
+        className={`menu-flip-book-wrap ${coverClosed ? "is-cover-closed" : ""}`}
+      >
+        <div className="menu-flip-ambient" aria-hidden="true" />
+
         <button
           type="button"
-          onClick={() => turnPage("prev")}
-          disabled={stepIndex === 0 || flipping}
-          className="menu-book-nav-btn"
+          className="menu-flip-side-btn menu-flip-side-btn--prev"
+          onClick={goPrev}
+          disabled={!canPrev || flipping}
           aria-label={copy.menu.pagePrev}
         >
-          ←
+          <ArrowIcon direction="prev" />
         </button>
-        <span className="menu-book-nav-label">
-          {totalPages > 0 ? `${stepIndex + 1} / ${totalPages}` : "—"}
-        </span>
+
+        <div
+          ref={bookRef}
+          className={`menu-flip-book ${coverClosed ? "is-cover-closed" : ""}`}
+        >
+          {pages.map((page, index) => {
+            if (page.kind === "cover") {
+              return (
+                <FlipPageShell key={`cover-${index}`} variant="cover" depth={pages.length - index}>
+                  <CoverPage />
+                </FlipPageShell>
+              );
+            }
+            if (page.kind === "section") {
+              return (
+                <FlipPageShell
+                  key={`section-${page.section}-${index}`}
+                  variant="section"
+                  depth={pages.length - index}
+                >
+                  <SectionPage section={page.section} />
+                </FlipPageShell>
+              );
+            }
+            contentPageNumber += 1;
+            return (
+              <FlipPageShell key={`content-${index}`} variant="content" depth={pages.length - index}>
+                <ContentPage groups={page.groups} pageNumber={contentPageNumber} />
+              </FlipPageShell>
+            );
+          })}
+        </div>
+
         <button
           type="button"
-          onClick={() => turnPage("next")}
-          disabled={stepIndex >= totalPages - 1 || flipping}
-          className="menu-book-nav-btn"
+          className="menu-flip-side-btn menu-flip-side-btn--next"
+          onClick={goNext}
+          disabled={!canNext || flipping}
           aria-label={copy.menu.pageNext}
         >
-          →
+          <ArrowIcon direction="next" />
         </button>
       </div>
 
-      <div
-        className={`menu-book menu-book-full ${flipping ? "is-flipping" : ""} ${isMobile ? "is-mobile" : ""} ${isSingleSpread ? "is-single-spread" : ""}`}
-      >
-        <div className="menu-book-shadow" aria-hidden="true" />
-        <div className="menu-book-cover menu-book-cover-left" aria-hidden="true" />
-        <div className="menu-book-spine" aria-hidden="true">
-          <span />
+      <div className="menu-flip-footer">
+        <div className="menu-flip-dots" role="tablist" aria-label="Páginas">
+          {Array.from({ length: pageCount }).map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              role="tab"
+              aria-selected={i === pageIndex}
+              className={`menu-flip-dot ${i === pageIndex ? "is-active" : ""}`}
+              onClick={() => {
+                if (!flipRef.current || flipping) return;
+                setFlipping(true);
+                flipRef.current.flip(i);
+              }}
+              aria-label={`Página ${i + 1}`}
+            />
+          ))}
         </div>
-        <div className="menu-book-cover menu-book-cover-right" aria-hidden="true" />
-
-        <div className="menu-book-spread menu-book-spread-3d">
-          {loading ? (
-            <div className="menu-book-state">{copy.menu.loading}</div>
-          ) : error || !catalog || !current ? (
-            <div className="menu-book-state">{copy.menu.unavailable}</div>
-          ) : isMobile ? (
-            <div
-              ref={mobilePageRef}
-              className="menu-book-page-shell menu-book-page-shell-mobile"
-            >
-              <ContentPage page={current as PageSide} side="right" />
-            </div>
-          ) : (
-            renderSpread(current as ContentSpread)
-          )}
-        </div>
+        <p className="menu-flip-counter">
+          {pageCount > 0 ? `${pageIndex + 1} / ${pageCount}` : "—"}
+        </p>
       </div>
     </div>
   );

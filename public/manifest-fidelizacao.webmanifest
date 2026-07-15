@@ -1,16 +1,21 @@
 {
-  "name": "Cinquenta & Seis — Fidelização",
-  "short_name": "Selos CS56",
-  "description": "Cartão de fidelização Cinquenta & Seis. Junta selos e ganha recompensas.",
-  "start_url": "/fidelizacao",
-  "scope": "/",
+  "name": "Cinquenta & Seis — App 56",
+  "short_name": "App 56",
+  "description": "App 56 Cinquenta & Seis. Junta selos e ganha recompensas.",
+  "start_url": "/app",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#1a1410",
   "theme_color": "#8f6814",
-  "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

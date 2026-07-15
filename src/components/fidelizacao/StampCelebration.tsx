@@ -38,7 +38,7 @@ export function StampCelebration({
             <h2 className="font-display text-2xl font-bold text-brand-gold">
               Recompensa desbloqueada
             </h2>
-            <p className="text-white/80 mt-2">
+            <p className="mt-2" style={{ color: "#6b5e52" }}>
               {rewardLabel ?? "Nova recompensa disponível"}
             </p>
           </>
@@ -53,7 +53,7 @@ export function StampCelebration({
             <h2 className="font-display text-2xl font-bold text-brand-gold">
               +{stampsAdded} selo{stampsAdded > 1 ? "s" : ""}
             </h2>
-            <p className="text-white/80 mt-2">
+            <p className="mt-2" style={{ color: "#6b5e52" }}>
               {isBonus ? "Desafio mensal activado" : "Obrigado pela visita"}
             </p>
           </>

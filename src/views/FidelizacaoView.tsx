@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { LoyaltyAuthScreen } from "@/components/fidelizacao/LoyaltyAuthScreen";
 import { LoyaltyCardTab } from "@/components/fidelizacao/LoyaltyCardTab";
+import { LoyaltyChallengesTab } from "@/components/fidelizacao/LoyaltyChallengesTab";
+import { LoyaltyLoader } from "@/components/fidelizacao/LoyaltyLoader";
 import { LoyaltyProfileTab } from "@/components/fidelizacao/LoyaltyProfileTab";
 import { LoyaltyQrTab } from "@/components/fidelizacao/LoyaltyQrTab";
 import { StampCelebration } from "@/components/fidelizacao/StampCelebration";
@@ -13,7 +16,7 @@ import {
   redeemLoyaltyClient,
 } from "@/lib/loyalty-api";
 
-type LoyaltyTab = "card" | "qr" | "profile";
+type LoyaltyTab = "card" | "challenges" | "qr" | "profile";
 
 export default function FidelizacaoView() {
   const [member, setMember] = useState<LoyaltyMemberProfile | null>(null);
@@ -124,11 +127,7 @@ export default function FidelizacaoView() {
   }
 
   if (!hydrated || loading) {
-    return (
-      <div className="loyalty-app">
-        <div className="loyalty-loading">A carregar…</div>
-      </div>
-    );
+    return <LoyaltyLoader label="A preparar o teu cartão…" />;
   }
 
   if (!member) {
@@ -158,9 +157,18 @@ export default function FidelizacaoView() {
 
       <div className="loyalty-shell loyalty-shell-app">
         <header className="loyalty-app-topbar">
-          <div>
-            <p className="loyalty-app-topbar-kicker">Cinquenta & Seis</p>
-            <p className="loyalty-app-topbar-title">Fidelização</p>
+          <div className="loyalty-app-topbar-brand">
+            <Image
+              src="/brand/logo.png"
+              alt=""
+              width={36}
+              height={36}
+              className="loyalty-app-topbar-logo"
+            />
+            <div>
+              <p className="loyalty-app-topbar-kicker">Cinquenta & Seis</p>
+              <p className="loyalty-app-topbar-title">App 56</p>
+            </div>
           </div>
           <span className="loyalty-level-badge loyalty-level-badge-compact">
             {member.level.label}
@@ -173,9 +181,11 @@ export default function FidelizacaoView() {
               member={member}
               pulseIndex={pulseIndex}
               onOpenQr={() => setTab("qr")}
+              onOpenChallenges={() => setTab("challenges")}
               onRedeem={(id) => void handleRedeem(id)}
             />
           )}
+          {tab === "challenges" && <LoyaltyChallengesTab member={member} />}
           {tab === "qr" && <LoyaltyQrTab member={member} />}
           {tab === "profile" && (
             <LoyaltyProfileTab
@@ -184,7 +194,7 @@ export default function FidelizacaoView() {
               onLogout={() => void handleLogout()}
             />
           )}
-          {error && <p className="text-red-300 text-sm text-center mt-4">{error}</p>}
+          {error && <p className="loyalty-error text-center mt-4">{error}</p>}
         </main>
 
         <nav className="loyalty-bottom-nav safe-bottom" aria-label="Navegação">
@@ -193,21 +203,61 @@ export default function FidelizacaoView() {
             className={tab === "card" ? "is-active" : ""}
             onClick={() => setTab("card")}
           >
-            Cartão
+            <span className="loyalty-nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                <circle cx="8.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+                <circle cx="15.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+              </svg>
+            </span>
+            <span className="loyalty-nav-label">Cartão</span>
           </button>
           <button
             type="button"
-            className={`loyalty-bottom-nav-qr ${tab === "qr" ? "is-active" : ""}`}
+            className={tab === "challenges" ? "is-active" : ""}
+            onClick={() => setTab("challenges")}
+          >
+            <span className="loyalty-nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M8 21h8" />
+                <path d="M12 17v4" />
+                <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+                <path d="M7 6H5a2 2 0 0 0 2 2" />
+                <path d="M17 6h2a2 2 0 0 1-2 2" />
+              </svg>
+            </span>
+            <span className="loyalty-nav-label">Desafios</span>
+          </button>
+          <button
+            type="button"
+            className={tab === "qr" ? "is-active" : ""}
             onClick={() => setTab("qr")}
           >
-            QR
+            <span className="loyalty-nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="3" y="3" width="7" height="7" rx="1.2" />
+                <rect x="14" y="3" width="7" height="7" rx="1.2" />
+                <rect x="3" y="14" width="7" height="7" rx="1.2" />
+                <path d="M14 14h3v3" />
+                <path d="M21 14v7h-7" />
+                <path d="M17 21v-4h4" />
+              </svg>
+            </span>
+            <span className="loyalty-nav-label">QR</span>
           </button>
           <button
             type="button"
             className={tab === "profile" ? "is-active" : ""}
             onClick={() => setTab("profile")}
           >
-            Perfil
+            <span className="loyalty-nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="12" cy="8" r="3.2" />
+                <path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" />
+              </svg>
+            </span>
+            <span className="loyalty-nav-label">Perfil</span>
           </button>
         </nav>
       </div>

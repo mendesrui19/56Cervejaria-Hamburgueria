@@ -112,7 +112,7 @@ export default function FidelizacaoScannerView() {
               ← Início
             </Link>
             <h1 className="font-display text-xl font-bold text-brand-gold mt-1">
-              Fidelização — Caixa
+              App 56 — Caixa
             </h1>
             <p className="text-xs text-brand-muted">Ler QR ou código do cliente</p>
           </div>
@@ -172,7 +172,7 @@ export default function FidelizacaoScannerView() {
               <h2 className="text-2xl font-black text-brand-gold">{member.name}</h2>
             <p className="text-sm text-brand-muted mt-1">
               {member.memberCode} · {member.level.label} · {member.mealsThisMonth}{" "}
-              visitas/mês · racha {member.streakWeeks}/{member.streakTarget}
+              visitas/mês · sequência {member.streakWeeks}/{member.streakTarget}
             </p>
             </div>
 
@@ -205,7 +205,7 @@ export default function FidelizacaoScannerView() {
         )}
 
         <p className="text-center text-xs text-brand-muted leading-relaxed px-2">
-          Lê o QR do cliente na app de fidelização para registar a visita e
+          Lê o QR do cliente na App 56 para registar a visita e
           atribuir selos.
         </p>
       </main>

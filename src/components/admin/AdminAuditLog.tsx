@@ -9,6 +9,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   transfer_table: "Transferência",
   merge_tables: "Juntar mesas",
   guest_count_update: "Nº pessoas",
+  request_bill: "Pedir conta",
+  reopen_round: "Nova ronda",
+  clear_table: "Fechar mesa",
+  loyalty_redeem: "App 56",
 };
 
 const ACTION_COLORS: Record<AuditAction, string> = {
@@ -18,6 +22,10 @@ const ACTION_COLORS: Record<AuditAction, string> = {
   transfer_table: "bg-blue-100 text-blue-800 border-blue-200",
   merge_tables: "bg-blue-100 text-blue-800 border-blue-200",
   guest_count_update: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  request_bill: "bg-amber-100 text-amber-900 border-amber-200",
+  reopen_round: "bg-sky-100 text-sky-900 border-sky-200",
+  clear_table: "bg-stone-100 text-stone-800 border-stone-200",
+  loyalty_redeem: "bg-teal-100 text-teal-800 border-teal-200",
 };
 
 function formatWhen(iso: string) {

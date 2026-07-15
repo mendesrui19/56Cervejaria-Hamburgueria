@@ -5,7 +5,14 @@ import { AppHeader, SegmentedControl } from "@/components/AppHeader";
 import { LogoutButton } from "@/components/LogoutButton";
 import { ItemStatusBadge, TableStatusBadge } from "@/components/StatusBadge";
 import { fetchCashier, fetchDayClose, fetchRecentPayments, processPayment, voidPayment } from "@/lib/api";
+import { lookupLoyaltyMember } from "@/lib/loyalty-api";
+import {
+  suggestedLoyaltyDiscount,
+  type LoyaltyMemberProfile,
+  type LoyaltyRewardRow,
+} from "@/lib/loyalty";
 import { formatPrice, isExtraCustomization } from "@/lib/menu";
+import { isBalcaoTable, tableFullLabel } from "@/lib/table-labels";
 import type { DayCloseSummary, Order, OrderItem, PaymentMethod, RecentPaymentEntry, Table } from "@/lib/types";
 import { usePolling } from "@/hooks/usePolling";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -74,18 +81,22 @@ function TableListButton({
   selected: boolean;
   onClick: () => void;
 }) {
+  const waitingBill = entry.table.status === "a_pagar";
+
   return (
     <button
       onClick={onClick}
       className={`w-full text-left transition-all touch-manipulation rounded-xl border px-3 py-2.5 ${
         selected
           ? "border-brand-gold bg-amber-50 shadow-sm"
+          : waitingBill
+          ? "border-orange-400 bg-orange-50 shadow-sm ring-1 ring-orange-200"
           : "border-brand-line bg-white active:bg-brand-dark"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-black text-brand-gold text-2xl tabular-nums leading-none">
-          {entry.table.number}
+        <span className="font-black text-brand-gold text-xl tabular-nums leading-none">
+          {isBalcaoTable(entry.table.number) ? "Balcão" : entry.table.number}
         </span>
         <TableStatusBadge status={entry.table.status} />
       </div>
@@ -93,6 +104,7 @@ function TableListButton({
         {formatPrice(entry.subtotal)}
       </p>
       <p className="text-xs text-brand-muted mt-1 truncate">
+        {waitingBill ? "Conta pedida · " : ""}
         {entry.itemCount} itens · {entry.order.waiterName}
       </p>
     </button>
@@ -136,10 +148,20 @@ function PaymentPanel({
   paymentCash,
   paymentCard,
   loading,
+  loyaltyDiscount,
+  loyaltyLabel,
+  loyaltyCode,
+  loyaltyLookingUp,
+  loyaltyMember,
+  loyaltyRewards,
   onTipChange,
   onMethodChange,
   onCashChange,
   onCardChange,
+  onLoyaltyCodeChange,
+  onLoyaltyLookup,
+  onApplyReward,
+  onClearLoyalty,
   onPay,
 }: {
   subtotal: number;
@@ -148,13 +170,23 @@ function PaymentPanel({
   paymentCash: number;
   paymentCard: number;
   loading: boolean;
+  loyaltyDiscount: number;
+  loyaltyLabel?: string;
+  loyaltyCode: string;
+  loyaltyLookingUp: boolean;
+  loyaltyMember: LoyaltyMemberProfile | null;
+  loyaltyRewards: LoyaltyRewardRow[];
   onTipChange: (tip: number) => void;
   onMethodChange: (method: PaymentMethod) => void;
   onCashChange: (cash: number) => void;
   onCardChange: (card: number) => void;
+  onLoyaltyCodeChange: (code: string) => void;
+  onLoyaltyLookup: () => void;
+  onApplyReward: (reward: LoyaltyRewardRow) => void;
+  onClearLoyalty: () => void;
   onPay: () => void;
 }) {
-  const total = subtotal + tip;
+  const total = Math.max(0, subtotal - loyaltyDiscount + tip);
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-white">
@@ -180,73 +212,131 @@ function PaymentPanel({
         </div>
       </div>
 
-      {paymentMethod === "misto" && (
-        <div className="shrink-0 px-3 py-2 border-b border-brand-line space-y-2">
-          <div>
-            <label className="text-xs font-bold text-brand-muted uppercase tracking-wide block mb-1">
-              Dinheiro
-            </label>
-            <input
-              type="number"
-              min={0}
-              step={0.5}
-              inputMode="decimal"
-              className="input !min-h-[44px] !py-2 text-base font-bold"
-              value={paymentCash || ""}
-              onChange={(e) => onCashChange(parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-brand-muted uppercase tracking-wide block mb-1">
-              Cartão (MB / MB Way)
-            </label>
-            <input
-              type="number"
-              min={0}
-              step={0.5}
-              inputMode="decimal"
-              className="input !min-h-[44px] !py-2 text-base font-bold"
-              value={paymentCard || ""}
-              onChange={(e) => onCardChange(parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          <p className="text-xs text-brand-muted">
-            Soma: {formatPrice(paymentCash + paymentCard)} / Total:{" "}
-            {formatPrice(total)}
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+        <div className="rounded-xl border border-brand-line bg-brand-dark/20 p-3 space-y-2">
+          <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest">
+            App 56
           </p>
-        </div>
-      )}
+          <div className="flex gap-2">
+            <input
+              className="input !min-h-[40px] !py-2 text-sm flex-1"
+              placeholder="Código / QR do cliente"
+              value={loyaltyCode}
+              onChange={(e) => onLoyaltyCodeChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onLoyaltyLookup();
+              }}
+            />
+            <button
+              type="button"
+              onClick={onLoyaltyLookup}
+              disabled={loyaltyLookingUp || !loyaltyCode.trim()}
+              className="btn-secondary !min-h-[40px] !px-3 text-xs shrink-0"
+            >
+              {loyaltyLookingUp ? "…" : "Ler"}
+            </button>
+          </div>
 
-      <div className="shrink-0 px-3 py-2 border-b border-brand-line">
-        <label className="text-xs font-bold text-brand-muted uppercase tracking-wide block mb-1.5">
-          Gorjeta
+          {loyaltyMember && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-brand-gold truncate">
+                  {loyaltyMember.name}
+                </p>
+                <button
+                  type="button"
+                  onClick={onClearLoyalty}
+                  className="text-[10px] font-bold text-brand-muted uppercase"
+                >
+                  Limpar
+                </button>
+              </div>
+              {loyaltyDiscount > 0 && loyaltyLabel ? (
+                <p className="text-xs font-semibold text-emerald-700">
+                  {loyaltyLabel} (−{formatPrice(loyaltyDiscount)})
+                </p>
+              ) : loyaltyRewards.length === 0 ? (
+                <p className="text-xs text-brand-muted">Sem recompensas disponíveis</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {loyaltyRewards.map((reward) => (
+                    <button
+                      key={reward.id}
+                      type="button"
+                      onClick={() => onApplyReward(reward)}
+                      className="w-full text-left rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-xs font-semibold text-emerald-900"
+                    >
+                      Aplicar: {reward.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <label className="block">
+          <span className="text-xs font-bold text-brand-muted uppercase tracking-wide">
+            Gorjeta
+          </span>
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            className="input mt-1 !min-h-[44px]"
+            value={tip || ""}
+            onChange={(e) => onTipChange(Number(e.target.value) || 0)}
+          />
         </label>
-        <input
-          type="number"
-          min={0}
-          step={0.5}
-          inputMode="decimal"
-          className="input !min-h-[44px] !py-2 text-base font-bold"
-          value={tip || ""}
-          onChange={(e) => onTipChange(parseFloat(e.target.value) || 0)}
-          placeholder="0,00"
-        />
+
+        {paymentMethod === "misto" && (
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="text-xs font-bold text-brand-muted">Dinheiro</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                className="input mt-1 !min-h-[44px]"
+                value={paymentCash || ""}
+                onChange={(e) => onCashChange(Number(e.target.value) || 0)}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold text-brand-muted">Cartão</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                className="input mt-1 !min-h-[44px]"
+                value={paymentCard || ""}
+                onChange={(e) => onCardChange(Number(e.target.value) || 0)}
+              />
+            </label>
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col justify-end p-3 gap-2 safe-bottom">
+      <div className="shrink-0 border-t border-brand-line p-3 space-y-2">
         <div className="space-y-1 text-sm">
-          <div className="flex justify-between text-brand-muted font-medium">
+          <div className="flex justify-between text-brand-muted">
             <span>Subtotal</span>
             <span className="tabular-nums">{formatPrice(subtotal)}</span>
           </div>
+          {loyaltyDiscount > 0 && (
+            <div className="flex justify-between text-emerald-700 font-semibold">
+              <span>Desconto</span>
+              <span className="tabular-nums">−{formatPrice(loyaltyDiscount)}</span>
+            </div>
+          )}
           {tip > 0 && (
-            <div className="flex justify-between text-brand-muted font-medium">
+            <div className="flex justify-between text-brand-muted">
               <span>Gorjeta</span>
               <span className="tabular-nums">{formatPrice(tip)}</span>
             </div>
           )}
-          <div className="flex justify-between text-2xl font-black text-brand-gold pt-1">
-            <span>TOTAL</span>
+          <div className="flex justify-between font-black text-brand-gold text-lg pt-1">
+            <span>Total</span>
             <span className="tabular-nums">{formatPrice(total)}</span>
           </div>
         </div>
@@ -289,10 +379,20 @@ function BillPanel({
   paymentCard,
   loading,
   isSplit,
+  loyaltyDiscount,
+  loyaltyLabel,
+  loyaltyCode,
+  loyaltyLookingUp,
+  loyaltyMember,
+  loyaltyRewards,
   onTipChange,
   onMethodChange,
   onCashChange,
   onCardChange,
+  onLoyaltyCodeChange,
+  onLoyaltyLookup,
+  onApplyReward,
+  onClearLoyalty,
   onPay,
   onBack,
 }: {
@@ -303,16 +403,51 @@ function BillPanel({
   paymentCard: number;
   loading: boolean;
   isSplit: boolean;
+  loyaltyDiscount: number;
+  loyaltyLabel?: string;
+  loyaltyCode: string;
+  loyaltyLookingUp: boolean;
+  loyaltyMember: LoyaltyMemberProfile | null;
+  loyaltyRewards: LoyaltyRewardRow[];
   onTipChange: (tip: number) => void;
   onMethodChange: (method: PaymentMethod) => void;
   onCashChange: (cash: number) => void;
   onCardChange: (card: number) => void;
+  onLoyaltyCodeChange: (code: string) => void;
+  onLoyaltyLookup: () => void;
+  onApplyReward: (reward: LoyaltyRewardRow) => void;
+  onClearLoyalty: () => void;
   onPay: () => void;
   onBack?: () => void;
 }) {
   const items = entry.order.items.filter(
     (i) => i.status !== "cancelado" && !i.isAddon
   );
+  const payable = Math.max(0, entry.subtotal - loyaltyDiscount + tip);
+
+  const paymentProps = {
+    subtotal: entry.subtotal,
+    tip,
+    paymentMethod,
+    paymentCash,
+    paymentCard,
+    loading,
+    loyaltyDiscount,
+    loyaltyLabel,
+    loyaltyCode,
+    loyaltyLookingUp,
+    loyaltyMember,
+    loyaltyRewards,
+    onTipChange,
+    onMethodChange,
+    onCashChange,
+    onCardChange,
+    onLoyaltyCodeChange,
+    onLoyaltyLookup,
+    onApplyReward,
+    onClearLoyalty,
+    onPay,
+  };
 
   const billItems = (
     <div className="min-h-0 overflow-y-auto scrollbar-thin px-3 py-1">
@@ -331,7 +466,7 @@ function BillPanel({
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="font-display text-2xl font-black text-brand-gold leading-none">
-                Mesa {entry.table.number}
+                {tableFullLabel(entry.table.number)}
               </h2>
               <TableStatusBadge status={entry.table.status} />
             </div>
@@ -345,7 +480,7 @@ function BillPanel({
             </p>
           </div>
           <p className="text-2xl font-black text-brand-gold tabular-nums shrink-0">
-            {formatPrice(entry.subtotal + tip)}
+            {formatPrice(payable)}
           </p>
         </div>
 
@@ -356,19 +491,7 @@ function BillPanel({
             </p>
             {billItems}
           </div>
-          <PaymentPanel
-            subtotal={entry.subtotal}
-            tip={tip}
-            paymentMethod={paymentMethod}
-            paymentCash={paymentCash}
-            paymentCard={paymentCard}
-            loading={loading}
-            onTipChange={onTipChange}
-            onMethodChange={onMethodChange}
-            onCashChange={onCashChange}
-            onCardChange={onCardChange}
-            onPay={onPay}
-          />
+          <PaymentPanel {...paymentProps} />
         </div>
       </div>
     );
@@ -389,7 +512,7 @@ function BillPanel({
           )}
           <div className="flex items-center gap-2">
             <h2 className="font-display text-xl font-black text-brand-gold">
-              Mesa {entry.table.number}
+              {tableFullLabel(entry.table.number)}
             </h2>
             <TableStatusBadge status={entry.table.status} />
           </div>
@@ -399,7 +522,7 @@ function BillPanel({
           </p>
         </div>
         <p className="text-xl font-black text-brand-gold tabular-nums shrink-0">
-          {formatPrice(entry.subtotal + tip)}
+          {formatPrice(payable)}
         </p>
       </div>
 
@@ -410,20 +533,8 @@ function BillPanel({
         {billItems}
       </div>
 
-      <div className="shrink-0 border-t border-brand-line max-h-[45dvh] overflow-y-auto">
-        <PaymentPanel
-          subtotal={entry.subtotal}
-          tip={tip}
-          paymentMethod={paymentMethod}
-          paymentCash={paymentCash}
-          paymentCard={paymentCard}
-          loading={loading}
-          onTipChange={onTipChange}
-          onMethodChange={onMethodChange}
-          onCashChange={onCashChange}
-          onCardChange={onCardChange}
-          onPay={onPay}
-        />
+      <div className="shrink-0 border-t border-brand-line max-h-[50dvh] overflow-y-auto">
+        <PaymentPanel {...paymentProps} />
       </div>
     </div>
   );
@@ -630,6 +741,25 @@ export default function CaixaView() {
   const [loading, setLoading] = useState(false);
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [loyaltyCode, setLoyaltyCode] = useState("");
+  const [loyaltyLookingUp, setLoyaltyLookingUp] = useState(false);
+  const [loyaltyMember, setLoyaltyMember] = useState<LoyaltyMemberProfile | null>(
+    null
+  );
+  const [loyaltyRewardId, setLoyaltyRewardId] = useState<number | null>(null);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
+  const [loyaltyLabel, setLoyaltyLabel] = useState<string | undefined>();
+
+  const loyaltyRewards =
+    loyaltyMember?.rewards.filter((r) => !r.redeemedAt) ?? [];
+
+  const clearLoyalty = useCallback(() => {
+    setLoyaltyCode("");
+    setLoyaltyMember(null);
+    setLoyaltyRewardId(null);
+    setLoyaltyDiscount(0);
+    setLoyaltyLabel(undefined);
+  }, []);
 
   const syncMistoSplit = useCallback(
     (cash: number, card: number) => {
@@ -639,41 +769,86 @@ export default function CaixaView() {
     []
   );
 
+  const payableTotal = selected
+    ? Math.max(0, selected.subtotal - loyaltyDiscount + tip)
+    : 0;
+
   const handleMethodChange = useCallback(
     (method: PaymentMethod) => {
       setPaymentMethod(method);
       if (method === "misto" && selected) {
-        const total = selected.subtotal + tip;
-        syncMistoSplit(total, 0);
+        syncMistoSplit(payableTotal, 0);
       }
     },
-    [selected, tip, syncMistoSplit]
+    [selected, payableTotal, syncMistoSplit]
   );
 
   const handleCashChange = useCallback(
     (cash: number) => {
       if (!selected) return;
-      const total = selected.subtotal + tip;
-      syncMistoSplit(cash, Math.max(0, Math.round((total - cash) * 100) / 100));
+      syncMistoSplit(
+        cash,
+        Math.max(0, Math.round((payableTotal - cash) * 100) / 100)
+      );
     },
-    [selected, tip, syncMistoSplit]
+    [selected, payableTotal, syncMistoSplit]
   );
 
   const handleCardChange = useCallback(
     (card: number) => {
       if (!selected) return;
-      const total = selected.subtotal + tip;
-      syncMistoSplit(Math.max(0, Math.round((total - card) * 100) / 100), card);
+      syncMistoSplit(
+        Math.max(0, Math.round((payableTotal - card) * 100) / 100),
+        card
+      );
     },
-    [selected, tip, syncMistoSplit]
+    [selected, payableTotal, syncMistoSplit]
+  );
+
+  const handleLoyaltyLookup = useCallback(async () => {
+    if (!loyaltyCode.trim()) return;
+    setLoyaltyLookingUp(true);
+    try {
+      const member = await lookupLoyaltyMember(loyaltyCode.trim());
+      setLoyaltyMember(member);
+      setLoyaltyRewardId(null);
+      setLoyaltyDiscount(0);
+      setLoyaltyLabel(undefined);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Cliente não encontrado");
+      setLoyaltyMember(null);
+    } finally {
+      setLoyaltyLookingUp(false);
+    }
+  }, [loyaltyCode]);
+
+  const handleApplyReward = useCallback(
+    (reward: LoyaltyRewardRow) => {
+      if (!selected) return;
+      const items = selected.order.items.filter(
+        (i) => i.status !== "cancelado" && !i.isAddon
+      );
+      const discount = Math.min(
+        selected.subtotal,
+        suggestedLoyaltyDiscount(reward.type, items)
+      );
+      setLoyaltyRewardId(reward.id);
+      setLoyaltyDiscount(discount);
+      setLoyaltyLabel(reward.label);
+      if (paymentMethod === "misto") {
+        const nextTotal = Math.max(0, selected.subtotal - discount + tip);
+        syncMistoSplit(nextTotal, 0);
+      }
+    },
+    [selected, paymentMethod, tip, syncMistoSplit]
   );
 
   const handlePay = useCallback(async () => {
     if (!selected) return;
-    const total = selected.subtotal + tip;
+    const total = Math.max(0, selected.subtotal - loyaltyDiscount + tip);
     if (
       !window.confirm(
-        `Confirmar pagamento da mesa ${selected.table.number} — ${formatPrice(total)}?`
+        `Confirmar pagamento de ${tableFullLabel(selected.table.number)} — ${formatPrice(total)}?`
       )
     ) {
       return;
@@ -686,14 +861,22 @@ export default function CaixaView() {
         ...(paymentMethod === "misto"
           ? { paymentCash, paymentCard }
           : {}),
+        ...(loyaltyDiscount > 0 && loyaltyMember && loyaltyRewardId
+          ? {
+              loyaltyDiscount,
+              loyaltyMemberId: loyaltyMember.id,
+              loyaltyRewardId,
+            }
+          : {}),
       });
       setSuccess(
-        `Mesa ${selected.table.number} paga — ${formatPrice(result.total)}`
+        `${tableFullLabel(selected.table.number)} pago — ${formatPrice(result.total)}`
       );
       setSelected(null);
       setTip(0);
       setPaymentCash(0);
       setPaymentCard(0);
+      clearLoyalty();
       refresh();
       refreshRecent();
       refreshClose();
@@ -709,6 +892,10 @@ export default function CaixaView() {
     tip,
     paymentCash,
     paymentCard,
+    loyaltyDiscount,
+    loyaltyMember,
+    loyaltyRewardId,
+    clearLoyalty,
     refresh,
     refreshRecent,
     refreshClose,
@@ -744,22 +931,34 @@ export default function CaixaView() {
     (newTip: number) => {
       setTip(newTip);
       if (paymentMethod === "misto" && selected) {
-        syncMistoSplit(selected.subtotal + newTip, 0);
+        const next = Math.max(0, selected.subtotal - loyaltyDiscount + newTip);
+        syncMistoSplit(next, 0);
       }
     },
-    [paymentMethod, selected, syncMistoSplit]
+    [paymentMethod, selected, loyaltyDiscount, syncMistoSplit]
   );
 
-  const handleSelectTable = useCallback((entry: CashierEntry) => {
-    setSelected(entry);
-    if (paymentMethod === "misto") {
-      setPaymentCash(entry.subtotal + tip);
-      setPaymentCard(0);
-    }
-  }, [paymentMethod, tip]);
+  const handleSelectTable = useCallback(
+    (entry: CashierEntry) => {
+      setSelected(entry);
+      clearLoyalty();
+      if (paymentMethod === "misto") {
+        setPaymentCash(entry.subtotal + tip);
+        setPaymentCard(0);
+      }
+    },
+    [paymentMethod, tip, clearLoyalty]
+  );
 
   const activeTables =
-    entries?.slice().sort((a, b) => a.table.number - b.table.number) ?? [];
+    entries
+      ?.slice()
+      .sort((a, b) => {
+        const aBill = a.table.status === "a_pagar" ? 0 : 1;
+        const bBill = b.table.status === "a_pagar" ? 0 : 1;
+        if (aBill !== bBill) return aBill - bBill;
+        return a.table.number - b.table.number;
+      }) ?? [];
 
   if (tab === "fecho") {
     return (
@@ -869,10 +1068,20 @@ export default function CaixaView() {
                   paymentCard={paymentCard}
                   loading={loading}
                   isSplit
+                  loyaltyDiscount={loyaltyDiscount}
+                  loyaltyLabel={loyaltyLabel}
+                  loyaltyCode={loyaltyCode}
+                  loyaltyLookingUp={loyaltyLookingUp}
+                  loyaltyMember={loyaltyMember}
+                  loyaltyRewards={loyaltyRewards}
                   onTipChange={handleTipChange}
                   onMethodChange={handleMethodChange}
                   onCashChange={handleCashChange}
                   onCardChange={handleCardChange}
+                  onLoyaltyCodeChange={setLoyaltyCode}
+                  onLoyaltyLookup={() => void handleLoyaltyLookup()}
+                  onApplyReward={handleApplyReward}
+                  onClearLoyalty={clearLoyalty}
                   onPay={handlePay}
                 />
               )}
@@ -888,12 +1097,25 @@ export default function CaixaView() {
               paymentCard={paymentCard}
               loading={loading}
               isSplit={false}
-              onTipChange={setTip}
+              loyaltyDiscount={loyaltyDiscount}
+              loyaltyLabel={loyaltyLabel}
+              loyaltyCode={loyaltyCode}
+              loyaltyLookingUp={loyaltyLookingUp}
+              loyaltyMember={loyaltyMember}
+              loyaltyRewards={loyaltyRewards}
+              onTipChange={handleTipChange}
               onMethodChange={handleMethodChange}
               onCashChange={handleCashChange}
               onCardChange={handleCardChange}
+              onLoyaltyCodeChange={setLoyaltyCode}
+              onLoyaltyLookup={() => void handleLoyaltyLookup()}
+              onApplyReward={handleApplyReward}
+              onClearLoyalty={clearLoyalty}
               onPay={handlePay}
-              onBack={() => setSelected(null)}
+              onBack={() => {
+                setSelected(null);
+                clearLoyalty();
+              }}
             />
           </main>
         ) : (

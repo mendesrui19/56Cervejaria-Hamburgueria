@@ -11,7 +11,6 @@ export type LoyaltyRewardType =
   | "entrada"
   | "hamburguer"
   | "cerveja_petisco"
-  | "aniversario"
   | "referencia";
 
 export type LoyaltyLevelId = "bronze" | "prata" | "ouro";
@@ -81,7 +80,6 @@ export interface LoyaltyMemberProfile {
   streakWeeks: number;
   streakTarget: number;
   streakEligible: boolean;
-  birthdayActive: boolean;
   inviteUrl: string;
   tierProgress: LoyaltyTierProgress[];
   availableRewards: number;
@@ -151,10 +149,9 @@ export function getIsoWeekKey(date = new Date()) {
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
-export function rewardLabelForType(type: LoyaltyRewardType): string {
+export function rewardLabelForType(type: LoyaltyRewardType | string): string {
   const found = LOYALTY_MILESTONES.find((m) => m.type === type);
   if (found) return found.label;
-  if (type === "aniversario") return "Entrada grátis (aniversário)";
   if (type === "referencia") return "Selo bónus (convite)";
   return "Recompensa";
 }
@@ -167,21 +164,37 @@ export function levelForVisits(visits: number) {
   return level;
 }
 
-export function buildTierProgress(lifetimeStamps: number): LoyaltyTierProgress[] {
-  return LOYALTY_MILESTONES.map((m) => ({
+/** Progresso até cada milestone (10 / 20 / 30 selos). */
+export function buildTierProgress(
+  lifetimeStamps: number
+): LoyaltyTierProgress[] {
+  return LOYALTY_MILESTONES.map((milestone) => ({
     lifetimeStamps,
-    target: m.lifetimeStamps,
-    type: m.type,
-    label: m.label,
-    reached: lifetimeStamps >= m.lifetimeStamps,
+    target: milestone.lifetimeStamps,
+    type: milestone.type,
+    label: milestone.label,
+    reached: lifetimeStamps >= milestone.lifetimeStamps,
   }));
 }
 
-export function isBirthdayMonth(birthDate?: string | null, now = new Date()) {
-  if (!birthDate) return false;
-  const [, month] = birthDate.split("-");
-  if (!month) return false;
-  return parseInt(month, 10) === now.getMonth() + 1;
+export function suggestedLoyaltyDiscount(
+  rewardType: string,
+  items: Array<{ price: number; quantity: number }>
+): number {
+  const unitPrices = items
+    .filter((item) => item.price > 0 && item.quantity > 0)
+    .map((item) => item.price);
+  if (unitPrices.length === 0) return 0;
+
+  const cheapest = Math.min(...unitPrices);
+  const priciest = Math.max(...unitPrices);
+
+  if (rewardType === "entrada") return cheapest;
+  if (rewardType === "cerveja_petisco") {
+    return Math.min(priciest, Math.max(cheapest * 2, cheapest));
+  }
+  // hamburguer / default: prato mais caro (1 unidade)
+  return priciest;
 }
 
 export function countConsecutiveWeeks(weekKeys: string[], fromWeek: string) {

@@ -20,8 +20,8 @@ export function OnlineMenuSection() {
               <Link href="/carta" className="menu-section-cta">
                 {copy.menu.openFull}
               </Link>
-              <Link href="/fidelizacao" className="menu-section-cta menu-section-cta--secondary">
-                Cartão de fidelização
+              <Link href="/app-promo" className="menu-section-cta menu-section-cta--secondary">
+                App 56
               </Link>
             </div>
           </div>

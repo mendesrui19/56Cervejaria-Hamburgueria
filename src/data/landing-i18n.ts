@@ -9,6 +9,7 @@ export interface LandingCopy {
     gallery: string;
     reviews: string;
     brewery: string;
+    app: string;
     contact: string;
     staff: string;
     openMenu: string;
@@ -68,6 +69,17 @@ export interface LandingCopy {
     titleLine1: string;
     titleLine2: string;
     description: string;
+    imageAlt: string;
+  };
+  app: {
+    eyebrow: string;
+    titleLine1: string;
+    titleLine2: string;
+    description: string;
+    point1: string;
+    point2: string;
+    cta: string;
+    ctaSecondary: string;
     imageAlt: string;
   };
   gallery: {
@@ -130,6 +142,7 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       gallery: "Galeria",
       reviews: "Opiniões",
       brewery: "Cervejaria",
+      app: "App 56",
       contact: "Contacto",
       staff: "Staff",
       openMenu: "Menu",
@@ -177,7 +190,7 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       qrHint: "Escaneia o QR na mesa para veres a carta no telemóvel.",
       openFull: "Ver carta completa",
       backToSite: "Voltar ao site",
-      tapToOpen: "Toca para abrir",
+      tapToOpen: "Setas, desliza ou toca o canto",
       pagePrev: "Página anterior",
       pageNext: "Página seguinte",
       foodCover: "Comida",
@@ -192,6 +205,18 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       description:
         "Cerveja de pressão, garrafas especiais e sugestões que combinam com o que pedires. A carta muda de vez em quando, mas a ideia é sempre a mesma: algo fresco para acompanhar a comida.",
       imageAlt: "Cervejas no bar da Cinquenta & Seis",
+    },
+    app: {
+      eyebrow: "App 56",
+      titleLine1: "A Cinquenta & Seis",
+      titleLine2: "no teu bolso.",
+      description:
+        "Cartão de selos digital, desafios, QR na caixa e recompensas. Junta visitas, desbloqueia entradas e leva a casa contigo.",
+      point1: "Desafios mensais, sequências semanais e convites",
+      point2: "Mostra o QR na caixa e ganha selos",
+      cta: "Abrir app",
+      ctaSecondary: "Ver experiência",
+      imageAlt: "App 56 Cinquenta & Seis com selos",
     },
     gallery: {
       eyebrow: "Galeria",
@@ -258,6 +283,7 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       gallery: "Gallery",
       reviews: "Reviews",
       brewery: "Brewery",
+      app: "App 56",
       contact: "Contact",
       staff: "Staff",
       openMenu: "Menu",
@@ -305,7 +331,7 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       qrHint: "Scan the QR at your table to view the menu on your phone.",
       openFull: "View full menu",
       backToSite: "Back to website",
-      tapToOpen: "Tap to open",
+      tapToOpen: "Arrows, swipe or tap the corner",
       pagePrev: "Previous page",
       pageNext: "Next page",
       foodCover: "Food",
@@ -320,6 +346,18 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       description:
         "Draft beer, special bottles and suggestions that match what you order. The list changes from time to time, but the idea stays the same: something fresh to go with your meal.",
       imageAlt: "Beers at Cinquenta & Seis bar",
+    },
+    app: {
+      eyebrow: "App 56",
+      titleLine1: "Cinquenta & Seis",
+      titleLine2: "in your pocket.",
+      description:
+        "Digital stamp card, challenges, QR at the till and rewards. Collect visits, unlock free starters and take the house with you.",
+      point1: "Monthly challenges, weekly sequences and invites",
+      point2: "Show your QR at the till to earn stamps",
+      cta: "Open app",
+      ctaSecondary: "See the experience",
+      imageAlt: "Cinquenta & Seis App 56 with stamps",
     },
     gallery: {
       eyebrow: "Gallery",

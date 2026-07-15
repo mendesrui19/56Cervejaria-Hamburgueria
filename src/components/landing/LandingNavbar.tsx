@@ -7,21 +7,34 @@ import { LanguageSwitcher } from "@/components/landing/LanguageSwitcher";
 import { useLandingLocale } from "@/contexts/LandingLocaleContext";
 import { BUSINESS } from "@/data/landing";
 
-export function LandingNavbar() {
+type LandingNavbarProps = {
+  /** Prefix for section anchors when not on the home page (e.g. "/"). */
+  sectionPrefix?: string;
+  /** Optional side CTA, e.g. Abrir app. */
+  openAppHref?: string;
+  openAppLabel?: string;
+};
+
+export function LandingNavbar({
+  sectionPrefix = "",
+  openAppHref,
+  openAppLabel = "Abrir app",
+}: LandingNavbarProps) {
   const { copy } = useLandingLocale();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   const navLinks = useMemo(
     () => [
-      { href: "#sobre", label: copy.nav.about },
-      { href: "#menu", label: copy.nav.menu },
-      { href: "#galeria", label: copy.nav.gallery },
-      { href: "#opinioes", label: copy.nav.reviews },
-      { href: "#cervejaria", label: copy.nav.brewery },
-      { href: "#contacto", label: copy.nav.contact },
+      { href: `${sectionPrefix}#sobre`, label: copy.nav.about },
+      { href: `${sectionPrefix}#menu`, label: copy.nav.menu },
+      { href: `${sectionPrefix}#galeria`, label: copy.nav.gallery },
+      { href: `${sectionPrefix}#opinioes`, label: copy.nav.reviews },
+      { href: `${sectionPrefix}#cervejaria`, label: copy.nav.brewery },
+      { href: `${sectionPrefix}#app`, label: copy.nav.app },
+      { href: `${sectionPrefix}#contacto`, label: copy.nav.contact },
     ],
-    [copy]
+    [copy, sectionPrefix]
   );
 
   useEffect(() => {
@@ -76,6 +89,11 @@ export function LandingNavbar() {
 
             <div className="landing-nav-actions">
               <LanguageSwitcher />
+              {openAppHref ? (
+                <Link href={openAppHref} className="landing-nav-app">
+                  {openAppLabel}
+                </Link>
+              ) : null}
               <a href={BUSINESS.phoneHref} className="landing-nav-reserva landing-nav-reserva-solid">
                 {copy.nav.bookNav}
               </a>
@@ -84,6 +102,11 @@ export function LandingNavbar() {
 
           <div className="landing-nav-mobile-actions">
             <LanguageSwitcher />
+            {openAppHref ? (
+              <Link href={openAppHref} className="landing-nav-app landing-nav-app-compact">
+                {openAppLabel}
+              </Link>
+            ) : null}
             <a href={BUSINESS.phoneHref} className="landing-nav-reserva landing-nav-reserva-solid">
               {copy.nav.bookNav}
             </a>
@@ -122,6 +145,15 @@ export function LandingNavbar() {
           </nav>
           <div className="landing-nav-drawer-footer">
             <LanguageSwitcher />
+            {openAppHref ? (
+              <Link
+                href={openAppHref}
+                onClick={() => setMenuOpen(false)}
+                className="landing-nav-app landing-nav-app-full"
+              >
+                {openAppLabel}
+              </Link>
+            ) : null}
             <a
               href={BUSINESS.phoneHref}
               onClick={() => setMenuOpen(false)}

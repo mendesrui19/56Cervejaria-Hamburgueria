@@ -1,55 +1,69 @@
-# Hamburgaria — Sistema de Gestão de Pedidos
+# Cinquenta & Seis — Site + Sistema + App 56
 
-Sistema completo para restaurante com três vistas sincronizadas em tempo real:
-
-- **Empregado de Mesa** — tomar pedidos com personalização completa
-- **Cozinha** — ver ingredientes e composição de cada prato
-- **Caixa** — consultar contas e processar pagamentos
+Monorepo Next.js para a hamburgueria & cervejaria **Cinquenta & Seis** (Fafe): site público, carta digital, POS staff e App 56.
 
 ## Arrancar
 
 ```bash
 npm install
-npm run dev
+cp .env.example .env   # preencher DATABASE_URL, STAFF_PIN, etc.
+npm run db:push        # schema PostgreSQL (Neon)
+npm run db:setup       # seed inicial (se aplicável)
+npm run dev            # http://localhost:3056
 ```
 
-Abrir [http://localhost:3000](http://localhost:3000)
-
-## Vistas
-
-| Vista | URL | Dispositivo sugerido |
-|-------|-----|---------------------|
-| Início | `/` | Qualquer |
-| Empregado | `/empregado` | Tablet |
-| Cozinha | `/cozinha` | Ecrã na cozinha |
-| Caixa | `/caixa` | PC / tablet caixa |
-
-## Fluxo de trabalho
-
-1. **Empregado** seleciona mesa → abre mesa → adiciona itens do menu
-2. Para hambúrgueres: escolhe carne (vaca/frango) e pão (caco/normal) — obrigatório
-3. Para menu infantil: escolhe tiras ou cheeseburger — obrigatório
-4. Pode adicionar extras (ovo, batata, molho) como acompanhamentos
-5. Envia itens pendentes à **Cozinha**
-6. **Cozinha** vê ingredientes completos + notas → marca "Pronto"
-7. Empregado pede conta → mesa fica "A Pagar"
-8. **Caixa** processa pagamento → mesa fica livre
-
-## Menu incluído
-
-Todo o menu da carta está configurado com preços, ingredientes e opções de personalização.
-
-## Sincronização
-
-Os dados sincronizam automaticamente a cada 2-3 segundos entre dispositivos na mesma rede (mesmo servidor).
-
-Os dados são guardados em `data/restaurant-state.json`.
-
-## Produção
+Produção:
 
 ```bash
 npm run build
-npm start
+npm start              # porta 3056
 ```
 
-Para uso em produção com múltiplos dispositivos, correr o servidor num PC da rede local e aceder via IP (ex: `http://192.168.1.10:3000`).
+## O que inclui
+
+### Público
+| Rota | Descrição |
+|------|-----------|
+| `/` | Landing (PT/EN), hero, sobre, menu, galeria, reviews, Glovo, contacto |
+| `/carta` | Carta digital em livro (page-flip), catálogo activo |
+
+### Staff (`/sistema` — PIN)
+| Rota | Descrição |
+|------|-----------|
+| `/sistema` | Hub + login PIN + PWA |
+| `/empregado` | Mesas (1–20) + Balcão (21), pedidos, personalização, enviar cozinha, pedir conta / nova ronda |
+| `/cozinha` | Tickets, zonas, pronto/entregue, alertas, sons |
+| `/caixa` | Contas a pagar, pagamentos, loyalty, void, fecho do dia |
+| `/admin` | Relatórios, histórico, auditoria, catálogo, mapa live, stats App 56 |
+| `/app/scanner` | Ler QR/código e adicionar selos |
+
+### App 56 (cliente)
+| Rota | Descrição |
+|------|-----------|
+| `/app` | PWA: cartão, desafios, QR, perfil |
+| `/app-promo` | Landing promocional da App 56 |
+
+## Fluxo operacional
+
+1. Empregado abre mesa (ou Balcão) → adiciona itens → envia à cozinha  
+2. Cozinha prepara → **Pronto** / **Entregue**  
+3. Empregado **pede conta** → mesa `a_pagar` (caixa destaca)  
+4. Com conta pedida: **bebidas** ainda podem ser adicionadas (mesa continua `a_pagar`)  
+5. Para **comida nova**: **Nova ronda** → mesa volta a `ocupada` → depois voltar a pedir conta  
+6. Caixa paga (dinheiro / multibanco / MB Way / misto + loyalty opcional) → mesa livre  
+
+## Dados e sync
+
+- **PostgreSQL** (Neon) via Drizzle — mesas, pedidos, menu, auditoria, loyalty  
+- Sync entre dispositivos por **polling HTTP** (não WebSockets)  
+- Auth staff: cookie de sessão + PIN (`STAFF_PIN`, default em `.env.example`)  
+- Idioma landing/carta: `localStorage` `cs56-landing-locale` (PT/EN)  
+
+## Variáveis de ambiente
+
+Ver `.env.example` (mínimo: `DATABASE_URL`, `STAFF_PIN` / secret de sessão).
+
+## Notas
+
+- Um único PIN staff abre todas as áreas (RBAC por papel ainda não existe)  
+- Nomes de pratos na carta vêm do catálogo (não traduzidos no i18n da landing)  

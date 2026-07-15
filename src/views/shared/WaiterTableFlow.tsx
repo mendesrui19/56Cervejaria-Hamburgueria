@@ -11,10 +11,13 @@ import {
 import {
   addItem,
   cancelItem,
+  clearTable,
   fetchState,
   mergeTables,
   openTable,
   removeItem,
+  reopenTableRound,
+  requestBill,
   sendToKitchen,
   transferTable,
   updateGuestCount,
@@ -25,6 +28,7 @@ import {
   needsCustomization,
   formatPrice,
 } from "@/lib/menu";
+import { isBalcaoTable, tableFullLabel } from "@/lib/table-labels";
 import { calculateOrderTotal } from "@/lib/utils";
 import type { MenuItem, OrderItem, RestaurantState } from "@/lib/types";
 import { usePolling } from "@/hooks/usePolling";
@@ -150,7 +154,8 @@ export function WaiterTableFlow({
     setLoading(true);
     setError("");
     try {
-      await openTable(selectedTable, waiterName, guestCount);
+      const people = isBalcaoTable(selectedTable) ? 1 : guestCount;
+      await openTable(selectedTable, waiterName, people);
       await refresh();
       setScreen("menu");
     } catch (e) {
@@ -159,6 +164,76 @@ export function WaiterTableFlow({
       setLoading(false);
     }
   }, [selectedTable, waiterName, guestCount, refresh]);
+
+  const handleRequestBill = useCallback(async () => {
+    if (!selectedTable) return;
+    if (
+      !window.confirm(
+        `Pedir conta de ${tableFullLabel(selectedTable)}? A caixa passa a ver este pedido.`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await requestBill(selectedTable);
+      setToast("Conta pedida");
+      await refresh();
+      setScreen("pedido");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedTable, refresh]);
+
+  const handleReopenRound = useCallback(async () => {
+    if (!selectedTable) return;
+    if (
+      !window.confirm(
+        `Nova ronda em ${tableFullLabel(selectedTable)}?\nA mesa deixa de estar «a pagar» e podes voltar a pedir comida. A caixa deixa de a destacar até pedires a conta outra vez.`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await reopenTableRound(selectedTable, waiterName);
+      setToast("Nova ronda — podes pedir comida");
+      await refresh();
+      setScreen("menu");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedTable, waiterName, refresh]);
+
+  const handleClearTable = useCallback(async () => {
+    if (!selectedTable) return;
+    if (
+      !window.confirm(
+        `Fechar ${tableFullLabel(selectedTable)} sem pagar?\nSó para erro ou mesa vazia.`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await clearTable(selectedTable, waiterName);
+      setToast("Mesa fechada");
+      setSelectedTable(null);
+      setScreen("mesas");
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedTable, waiterName, refresh]);
 
   const doAddItem = useCallback(
     async (
@@ -469,6 +544,10 @@ export function WaiterTableFlow({
           onTransfer={handleTransfer}
           onMerge={handleMerge}
           onGuestCountChange={handleGuestCountChange}
+          onRequestBill={() => void handleRequestBill()}
+          onReopenRound={() => void handleReopenRound()}
+          onClearTable={() => void handleClearTable()}
+          billRequested={currentTable?.status === "a_pagar"}
           nested={nested}
         />
       </>
@@ -502,6 +581,8 @@ export function WaiterTableFlow({
           onUpdateQuantity={handleUpdateQuantity}
           onSendToKitchen={handleSendToKitchen}
           onTableActions={() => setScreen("mesa-acoes")}
+          onRequestBill={() => void handleRequestBill()}
+          onReopenRound={() => void handleReopenRound()}
           nested={nested}
         />
       </>
@@ -509,6 +590,7 @@ export function WaiterTableFlow({
   }
 
   if (screen === "menu" && currentOrder && selectedTable) {
+    const billRequested = currentTable?.status === "a_pagar";
     return (
       <ScreenPage nested={nested}>
         {toast && <AddToast message={toast} onDone={() => setToast(null)} />}
@@ -525,7 +607,7 @@ export function WaiterTableFlow({
         )}
 
         <ScreenHeader
-          title={`Mesa ${selectedTable}`}
+          title={tableFullLabel(selectedTable)}
           subtitle={`${itemCount} itens · ${formatPrice(total)}`}
           onBack={goMesas}
           backLabel="Mesas"
@@ -542,6 +624,23 @@ export function WaiterTableFlow({
             </button>
           }
         />
+
+        {billRequested && (
+          <div className="mx-3 mt-2 rounded-xl bg-orange-50 border border-orange-300 px-3 py-2.5 text-orange-950 text-xs shrink-0">
+            <p className="font-semibold">
+              Conta pedida — podes adicionar bebidas. Para comida, inicia nova
+              ronda.
+            </p>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void handleReopenRound()}
+              className="mt-2 w-full min-h-[40px] rounded-lg border border-sky-400 bg-sky-50 text-sky-950 font-bold touch-manipulation"
+            >
+              Nova ronda
+            </button>
+          </div>
+        )}
 
         <ScreenBody>
           {menuLoading ? (

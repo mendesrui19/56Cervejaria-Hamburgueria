@@ -138,7 +138,7 @@ export async function fetchAdminLoyaltyStats(): Promise<LoyaltyAdminStats> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "Erro ao carregar fidelização");
+    throw new Error(err.error || "Erro ao carregar App 56");
   }
   return res.json();
 }

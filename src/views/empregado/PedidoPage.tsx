@@ -11,6 +11,12 @@ import {
   ScreenPage,
 } from "@/components/ScreenLayout";
 import { formatPrice, isExtraCustomization } from "@/lib/menu";
+import {
+  isBalcaoTable,
+  tableFullLabel,
+  tableShortLabel,
+} from "@/lib/table-labels";
+import { BALCAO_TABLE_NUMBER } from "@/lib/validators";
 import type { MenuItem, Order, OrderItem, Table } from "@/lib/types";
 
 interface PedidoPageProps {
@@ -28,6 +34,8 @@ interface PedidoPageProps {
   onUpdateQuantity: (id: string, quantity: number) => void;
   onSendToKitchen: (itemIds?: string[]) => void;
   onTableActions: () => void;
+  onRequestBill: () => void;
+  onReopenRound: () => void;
   nested?: boolean;
 }
 
@@ -175,6 +183,7 @@ function ItemRow({
 
 export function PedidoPage({
   tableNumber,
+  table,
   order,
   total,
   pendingCount,
@@ -187,9 +196,13 @@ export function PedidoPage({
   onUpdateQuantity,
   onSendToKitchen,
   onTableActions,
+  onRequestBill,
+  onReopenRound,
   nested = false,
 }: PedidoPageProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const billRequested = table?.status === "a_pagar";
+  const label = tableFullLabel(tableNumber);
 
   const items = order.items.filter(
     (i) => i.status !== "cancelado" && !i.isAddon
@@ -233,7 +246,7 @@ export function PedidoPage({
   return (
     <ScreenPage nested={nested}>
       <ScreenHeader
-        title={`Pedido — Mesa ${tableNumber}`}
+        title={`Pedido — ${label}`}
         subtitle={`${items.length} itens · ${formatPrice(total)}`}
         onBack={onBack}
         backLabel="Menu"
@@ -244,11 +257,30 @@ export function PedidoPage({
             onClick={onTableActions}
             className="text-xs font-semibold text-brand-gold px-3 py-2 rounded-xl border border-brand-gold/25"
           >
-            Mesa
+            {isBalcaoTable(tableNumber) ? "Opções" : "Mesa"}
           </button>
         }
       />
 
+      {billRequested && (
+        <div className="mx-4 mt-3 rounded-xl bg-orange-50 border border-orange-300 px-4 py-3 text-orange-950 text-sm">
+          <p className="font-semibold">
+            Conta pedida — à espera da caixa. Podes ainda adicionar bebidas.
+          </p>
+          <p className="text-xs mt-1 text-orange-900/80">
+            Para comida nova, inicia uma nova ronda (a mesa deixa de estar «a
+            pagar» até pedires a conta outra vez).
+          </p>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={onReopenRound}
+            className="mt-2.5 w-full min-h-[44px] rounded-xl border border-sky-400 bg-sky-50 text-sky-950 font-bold touch-manipulation"
+          >
+            Nova ronda
+          </button>
+        </div>
+      )}
       {order.kitchenAlert && (
         <div className="mx-4 mt-3 rounded-xl bg-amber-50 border border-amber-300 px-4 py-3 text-amber-950 text-sm">
           <p className="font-bold uppercase tracking-wide text-xs mb-1">
@@ -345,6 +377,19 @@ export function PedidoPage({
               </button>
             </div>
           )}
+
+          {!billRequested && (
+            <button
+              type="button"
+              onClick={onRequestBill}
+              disabled={loading}
+              className={`w-full text-base font-bold rounded-xl border-2 border-orange-400 bg-orange-50 text-orange-950 min-h-[48px] touch-manipulation ${
+                pendingCount > 0 ? "mt-2" : ""
+              }`}
+            >
+              Pedir conta
+            </button>
+          )}
         </ScreenFooter>
       )}
     </ScreenPage>
@@ -360,6 +405,10 @@ interface MesaActionsPageProps {
   onTransfer: (toTableNumber: number) => void;
   onMerge: (withTableNumber: number) => void;
   onGuestCountChange: (count: number) => void;
+  onRequestBill: () => void;
+  onReopenRound: () => void;
+  onClearTable: () => void;
+  billRequested?: boolean;
   nested?: boolean;
 }
 
@@ -372,6 +421,10 @@ export function MesaActionsPage({
   onTransfer,
   onMerge,
   onGuestCountChange,
+  onRequestBill,
+  onReopenRound,
+  onClearTable,
+  billRequested = false,
   nested = false,
 }: MesaActionsPageProps) {
   const freeTables = tables.filter(
@@ -383,12 +436,13 @@ export function MesaActionsPage({
       table.number !== tableNumber &&
       table.orderId
   );
+  const balcao = isBalcaoTable(tableNumber);
 
   return (
     <ScreenPage nested={nested}>
       <ScreenHeader
-        title={`Mesa ${tableNumber}`}
-        subtitle="Transferir ou juntar contas"
+        title={tableFullLabel(tableNumber)}
+        subtitle="Conta, transferir ou fechar"
         onBack={onBack}
         backLabel="Pedido"
         compact={nested}
@@ -396,6 +450,47 @@ export function MesaActionsPage({
 
       <ScreenBody>
         <div className="p-4 space-y-6">
+          <section className="space-y-2">
+            {!billRequested ? (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={onRequestBill}
+                className="w-full min-h-[52px] rounded-xl border-2 border-orange-400 bg-orange-50 text-orange-950 font-bold touch-manipulation"
+              >
+                Pedir conta
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="rounded-xl border border-orange-300 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-950">
+                  Conta já pedida — a caixa já vê este pedido. Bebidas ainda
+                  podem ser adicionadas.
+                </div>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={onReopenRound}
+                  className="w-full min-h-[48px] rounded-xl border-2 border-sky-400 bg-sky-50 text-sky-950 font-bold touch-manipulation"
+                >
+                  Nova ronda (voltar a servir)
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              disabled={loading}
+              onClick={onClearTable}
+              className="w-full min-h-[48px] rounded-xl border border-red-200 bg-red-50 text-red-800 font-semibold touch-manipulation"
+            >
+              Fechar sem pagar (erro)
+            </button>
+            <p className="text-xs text-brand-muted">
+              Usa só se abriste por engano ou a conta está vazia. Não funciona se
+              já houver pratos prontos/entregues.
+            </p>
+          </section>
+
+          {!balcao && (
           <section>
             <h2 className="text-sm font-bold text-brand-gold mb-2">
               Nº de pessoas
@@ -427,6 +522,7 @@ export function MesaActionsPage({
               </div>
             </div>
           </section>
+          )}
 
           <section>
             <h2 className="text-sm font-bold text-brand-gold mb-2">
@@ -447,7 +543,7 @@ export function MesaActionsPage({
                     onClick={() => onTransfer(table.number)}
                     className="rounded-xl border border-brand-line py-3 font-black text-brand-gold touch-manipulation"
                   >
-                    {table.number}
+                    {isBalcaoTable(table.number) ? "B" : table.number}
                   </button>
                 ))}
               </div>
@@ -475,7 +571,7 @@ export function MesaActionsPage({
                     onClick={() => onMerge(table.number)}
                     className="rounded-xl border-2 border-amber-400 bg-amber-50 py-3 font-black text-amber-900 touch-manipulation"
                   >
-                    {table.number}
+                    {isBalcaoTable(table.number) ? "B" : table.number}
                   </button>
                 ))}
               </div>
@@ -512,6 +608,8 @@ export function MesasPage({
   namePlaceholder = "O seu nome (empregado)",
   nested = false,
 }: MesasPageProps) {
+  const diningTables = tables.filter((t) => !isBalcaoTable(t.number));
+  const balcaoTable = tables.find((t) => isBalcaoTable(t.number));
   const occupied = tables.filter((t) => t.status !== "livre").length;
 
   function tableHasAlert(table: Table) {
@@ -603,7 +701,7 @@ export function MesasPage({
           </div>
 
           <div className={`grid grid-cols-4 ${nested ? "gap-2" : "gap-3"}`}>
-            {tables.map((table) => {
+            {diningTables.map((table) => {
               const readyCount = tableReadyCount(table);
               const hasAlert = tableHasAlert(table);
 
@@ -625,7 +723,9 @@ export function MesasPage({
                       : "bg-white border border-brand-line text-brand-muted shadow-sm"
                   }`}
                 >
-                  <span className="text-2xl font-black block">{table.number}</span>
+                  <span className="text-2xl font-black block">
+                    {tableShortLabel(table.number)}
+                  </span>
                   <span className="text-[10px] font-medium opacity-80">
                     {hasAlert
                       ? "Alerta"
@@ -641,6 +741,42 @@ export function MesasPage({
               );
             })}
           </div>
+
+          {balcaoTable && (
+            <button
+              type="button"
+              onClick={() => onSelectTable(BALCAO_TABLE_NUMBER)}
+              className={`mt-3 w-full rounded-2xl text-left touch-manipulation active:scale-[0.99] px-4 ${
+                nested ? "py-3 min-h-[56px]" : "py-4 min-h-[64px]"
+              } ${
+                tableHasAlert(balcaoTable)
+                  ? "bg-red-50 border-2 border-red-400 text-red-900"
+                  : tableReadyCount(balcaoTable) > 0
+                  ? "bg-green-50 border-2 border-green-400 text-green-900"
+                  : balcaoTable.status === "a_pagar"
+                  ? "bg-orange-50 border-2 border-orange-400 text-orange-900"
+                  : balcaoTable.status === "ocupada"
+                  ? "bg-amber-50 border-2 border-amber-400 text-amber-900"
+                  : "bg-white border border-brand-line text-brand-muted shadow-sm"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-lg font-black leading-none">Balcão</p>
+                  <p className="text-[11px] font-medium opacity-80 mt-1">
+                    Takeaway / sem mesa
+                  </p>
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wide opacity-80">
+                  {balcaoTable.status === "livre"
+                    ? "Livre"
+                    : balcaoTable.status === "a_pagar"
+                    ? "Conta"
+                    : "Aberto"}
+                </span>
+              </div>
+            </button>
+          )}
         </div>
       </ScreenBody>
     </ScreenPage>
@@ -670,11 +806,13 @@ export function AbrirMesaPage({
   loading,
   nested = false,
 }: AbrirMesaPageProps) {
+  const balcao = isBalcaoTable(tableNumber);
+
   return (
     <ScreenPage nested={nested}>
       <ScreenHeader
-        title={`Mesa ${tableNumber}`}
-        subtitle="Mesa livre"
+        title={tableFullLabel(tableNumber)}
+        subtitle={balcao ? "Takeaway / sem mesa" : "Mesa livre"}
         onBack={onBack}
         backLabel="Mesas"
         compact={nested}
@@ -687,10 +825,12 @@ export function AbrirMesaPage({
               nested ? "text-6xl" : "text-7xl"
             }`}
           >
-            {tableNumber}
+            {balcao ? "B" : tableNumber}
           </span>
           <p className="text-brand-muted text-center text-base sm:text-lg leading-snug max-w-xs font-medium">
-            Confirmar abertura da mesa para começar o pedido
+            {balcao
+              ? "Abrir pedido de balcão / takeaway"
+              : "Confirmar abertura da mesa para começar o pedido"}
           </p>
 
           <div className="w-full max-w-md flex flex-col gap-3">
@@ -713,30 +853,32 @@ export function AbrirMesaPage({
               )}
             </div>
 
-            <div className="w-full min-w-0 flex items-center justify-between gap-4 rounded-2xl border border-brand-line bg-brand-card px-4 py-3.5 shadow-sm">
-              <span className="text-base sm:text-lg text-brand-muted font-semibold shrink-0">
-                Pessoas
-              </span>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => onGuestCount(Math.max(1, guestCount - 1))}
-                  className="flex items-center justify-center min-w-[48px] min-h-[48px] rounded-full bg-brand-surface border border-brand-gold/30 text-brand-gold text-xl touch-manipulation"
-                >
-                  −
-                </button>
-                <span className="text-2xl font-black text-brand-gold w-8 text-center tabular-nums">
-                  {guestCount}
+            {!balcao && (
+              <div className="w-full min-w-0 flex items-center justify-between gap-4 rounded-2xl border border-brand-line bg-brand-card px-4 py-3.5 shadow-sm">
+                <span className="text-base sm:text-lg text-brand-muted font-semibold shrink-0">
+                  Pessoas
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onGuestCount(Math.min(20, guestCount + 1))}
-                  className="flex items-center justify-center min-w-[48px] min-h-[48px] rounded-full bg-brand-surface border border-brand-gold/30 text-brand-gold text-xl touch-manipulation"
-                >
-                  +
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onGuestCount(Math.max(1, guestCount - 1))}
+                    className="flex items-center justify-center min-w-[48px] min-h-[48px] rounded-full bg-brand-surface border border-brand-gold/30 text-brand-gold text-xl touch-manipulation"
+                  >
+                    −
+                  </button>
+                  <span className="text-2xl font-black text-brand-gold w-8 text-center tabular-nums">
+                    {guestCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onGuestCount(Math.min(20, guestCount + 1))}
+                    className="flex items-center justify-center min-w-[48px] min-h-[48px] rounded-full bg-brand-surface border border-brand-gold/30 text-brand-gold text-xl touch-manipulation"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </ScreenBody>
@@ -747,7 +889,7 @@ export function AbrirMesaPage({
           disabled={loading || !waiterName.trim()}
           className="btn-primary w-full text-lg py-4 min-h-[56px]"
         >
-          Abrir Mesa e Ir ao Menu
+          {balcao ? "Abrir Balcão e Ir ao Menu" : "Abrir Mesa e Ir ao Menu"}
         </button>
       </ScreenFooter>
     </ScreenPage>

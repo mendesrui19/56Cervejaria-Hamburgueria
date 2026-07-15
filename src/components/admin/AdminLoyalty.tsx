@@ -57,7 +57,7 @@ export function AdminLoyalty() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 text-brand-muted">
-        A carregar fidelização…
+        A carregar App 56…
       </div>
     );
   }

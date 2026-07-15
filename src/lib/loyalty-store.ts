@@ -11,7 +11,6 @@ import {
   countConsecutiveWeeks,
   currentMonthKey,
   getIsoWeekKey,
-  isBirthdayMonth,
   levelForVisits,
   LOYALTY_BONUS_STAMPS,
   LOYALTY_MILESTONES,
@@ -115,7 +114,8 @@ async function countAvailableRewards(memberId: string): Promise<number> {
     .where(
       and(
         eq(loyaltyRewards.memberId, memberId),
-        isNull(loyaltyRewards.redeemedAt)
+        isNull(loyaltyRewards.redeemedAt),
+        sql`${loyaltyRewards.rewardType} <> 'aniversario'`
       )
     );
   return row?.count ?? 0;
@@ -127,7 +127,7 @@ function inviteUrlForCode(memberCode: string) {
     (process.env.NODE_ENV === "production"
       ? "https://56cervejariahamburgueria.vercel.app"
       : "http://localhost:3056");
-  return `${base}/fidelizacao?ref=${memberCode}`;
+  return `${base}/app?ref=${memberCode}`;
 }
 
 async function buildProfile(
@@ -148,15 +148,16 @@ async function buildProfile(
     streakWeeks >= LOYALTY_STREAK_WEEKS - 1 &&
     memberRow.streakBonusWeek !== currentWeek;
 
-  const birthdayActive =
-    isBirthdayMonth(memberRow.birthDate) &&
-    memberRow.birthdayRewardYear !== new Date().getFullYear();
-
   const db = getDb();
   const rewards = await db
     .select()
     .from(loyaltyRewards)
-    .where(eq(loyaltyRewards.memberId, memberRow.id))
+    .where(
+      and(
+        eq(loyaltyRewards.memberId, memberRow.id),
+        sql`${loyaltyRewards.rewardType} <> 'aniversario'`
+      )
+    )
     .orderBy(desc(loyaltyRewards.unlockedAt))
     .limit(15);
 
@@ -189,7 +190,6 @@ async function buildProfile(
     streakWeeks,
     streakTarget: LOYALTY_STREAK_WEEKS,
     streakEligible,
-    birthdayActive,
     inviteUrl: inviteUrlForCode(memberRow.memberCode),
     tierProgress: buildTierProgress(memberRow.lifetimeStamps),
     availableRewards: await countAvailableRewards(memberRow.id),
@@ -598,7 +598,6 @@ export async function addLoyaltyStamp(input: {
   let rewardUnlocked = false;
   let bonusClaimedMonth = member.bonusClaimedMonth;
   let streakBonusWeek = member.streakBonusWeek;
-  let birthdayRewardYear = member.birthdayRewardYear;
   let referralBonusPaid = member.referralBonusPaid;
 
   stampsAdded += 1;
@@ -621,17 +620,7 @@ export async function addLoyaltyStamp(input: {
   ) {
     stampsAdded += 1;
     streakBonusWeek = weekKey;
-    reasons.push("racha");
-  }
-
-  if (
-    isBirthdayMonth(member.birthDate) &&
-    member.birthdayRewardYear !== new Date().getFullYear()
-  ) {
-    await grantReward(member.id, "aniversario", now);
-    birthdayRewardYear = new Date().getFullYear();
-    rewardUnlocked = true;
-    reasons.push("aniversario");
+    reasons.push("sequencia");
   }
 
   let workingMember = { ...member };
@@ -641,7 +630,6 @@ export async function addLoyaltyStamp(input: {
     ...firstResult.updated,
     bonusClaimedMonth,
     streakBonusWeek,
-    birthdayRewardYear,
     referralBonusPaid,
   };
   rewardUnlocked = rewardUnlocked || firstResult.rewardUnlocked;
@@ -697,7 +685,6 @@ export async function addLoyaltyStamp(input: {
       milestone30Granted: workingMember.milestone30Granted,
       bonusClaimedMonth,
       streakBonusWeek,
-      birthdayRewardYear,
       referralBonusPaid,
     })
     .where(eq(loyaltyMembers.id, member.id))
@@ -709,8 +696,7 @@ export async function addLoyaltyStamp(input: {
     ? `Bónus mensal! +${stampsAdded} selos`
     : `+${stampsAdded} selo${stampsAdded > 1 ? "s" : ""}`;
 
-  if (reasons.includes("racha")) message += " · Racha de 3 semanas!";
-  if (reasons.includes("aniversario")) message += " · Feliz aniversário!";
+  if (reasons.includes("sequencia")) message += " · Sequências semanais!";
   if (reasons.includes("convite")) message += " · Bónus convite!";
   if (rewardUnlocked) message += " · Recompensa desbloqueada!";
 

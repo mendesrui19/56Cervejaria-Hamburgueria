@@ -229,6 +229,32 @@ export async function requestBill(tableNumber: number) {
   return res.json();
 }
 
+export async function reopenTableRound(tableNumber: number, actor?: string) {
+  const res = await apiFetch(`/api/tables/${tableNumber}/reopen`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao reabrir mesa");
+  }
+  return res.json();
+}
+
+export async function clearTable(tableNumber: number, actor?: string) {
+  const res = await apiFetch(`/api/tables/${tableNumber}/clear`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao fechar mesa");
+  }
+  return res.json();
+}
+
 export async function processPayment(
   tableNumber: number,
   payload: {
@@ -236,6 +262,9 @@ export async function processPayment(
     tip?: number;
     paymentCash?: number;
     paymentCard?: number;
+    loyaltyDiscount?: number;
+    loyaltyMemberId?: string;
+    loyaltyRewardId?: number;
   }
 ) {
   const res = await apiFetch(`/api/cashier/${tableNumber}/pay`, {

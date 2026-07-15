@@ -34,13 +34,13 @@ export function MemberQr({
   return (
     <div className={`loyalty-qr-wrap ${large ? "is-large" : ""}`}>
       {error ? (
-        <p className="text-red-300 text-sm">{error}</p>
+        <p className="loyalty-error text-sm">{error}</p>
       ) : (
         <canvas ref={canvasRef} className="rounded-2xl" aria-label="QR Code" />
       )}
       {!large && <p className="loyalty-code-label">{memberCode}</p>}
       {showHint && !large && (
-        <p className="text-xs text-white/50 mt-2 text-center max-w-[220px]">
+        <p className="loyalty-qr-hint">
           Mostra este código na caixa para ganhar selos
         </p>
       )}

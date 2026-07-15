@@ -8,6 +8,7 @@ import { HeroSection } from "@/components/landing/HeroSection";
 import { LandingMobileBar } from "@/components/landing/LandingMobileBar";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import { LandingPhoneFab } from "@/components/landing/LandingPhoneFab";
+import { LoyaltyAppSection } from "@/components/landing/LoyaltyAppSection";
 import { OnlineMenuSection } from "@/components/landing/OnlineMenuSection";
 import { RevealSection } from "@/components/landing/RevealSection";
 import { ReviewsSection } from "@/components/landing/ReviewsSection";
@@ -23,7 +24,7 @@ function LandingViewContent() {
 
   return (
     <main className="landing-page bg-[#f4efe6] text-[#1a1410] landing-has-mobile-bar">
-      <LandingNavbar />
+      <LandingNavbar openAppHref="/app-promo" openAppLabel={copy.app.cta} />
       <LandingPhoneFab />
       <HeroSection />
 
@@ -90,6 +91,8 @@ function LandingViewContent() {
           </div>
         </div>
       </RevealSection>
+
+      <LoyaltyAppSection />
 
       <RevealSection id="galeria" className="py-20 sm:py-28">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
