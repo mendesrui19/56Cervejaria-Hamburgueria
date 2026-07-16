@@ -1,6 +1,10 @@
 import { HERO_VIDEO } from "@/data/landing";
 
-const SHARED_ASSETS = ["/brand/logo.png"] as const;
+const SHARED_ASSETS = [
+  "/brand/logo.png",
+  "/brand/loader-poster.jpg",
+  "/video/loader.mp4",
+] as const;
 
 /** Só o essencial para o primeiro ecrã — o resto carrega depois do loader */
 const LANDING_ASSETS = [
