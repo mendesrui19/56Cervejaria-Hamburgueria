@@ -19,20 +19,20 @@ const CHAPTERS = [
   {
     id: "cartao",
     kicker: "CARTÃO DE SELOS",
-    title: "10 selos. Entrada grátis.",
-    body: "Cada visita conta no cartão digital. Completa a grelha e desbloqueia a entrada — sem papel nem cartão físico.",
+    title: "O teu cartão, no telemóvel.",
+    body: "Cada visita conta no cartão digital. Junta selos e acompanha o progresso — sem papel nem cartão físico.",
   },
   {
     id: "recompensas",
     kicker: "RECOMPENSAS",
-    title: "Por selos totais.",
-    body: "Entrada grátis aos 10, hambúrguer aos 20 e cerveja + petisco aos 30. Usa na caixa quando estiveres pronto.",
+    title: "Desbloqueia prémios.",
+    body: "À medida que acumulas selos, desbloqueias recompensas para usares na caixa quando quiseres.",
   },
   {
     id: "desafios",
     kicker: "DESAFIOS",
-    title: "Mensal, sequências e convites.",
-    body: "5 visitas no mês dão +4 selos. 3 sequências semanais dão selo extra. Convida um amigo e ambos ganham bónus.",
+    title: "Ganha selos extra.",
+    body: "Desafios, sequências semanais e convites a amigos — formas simples de acelerar o teu cartão.",
   },
   {
     id: "qr",
@@ -42,7 +42,14 @@ const CHAPTERS = [
   },
 ] as const;
 
+const SEAL_SRCS = [
+  "/brand/selo-stamp.png",
+  "/brand/selo-cerveja.png",
+  "/brand/selo-burger.png",
+] as const;
+
 const SEALS: Array<{
+  src: string;
   top: string;
   left?: string;
   right?: string;
@@ -50,12 +57,14 @@ const SEALS: Array<{
   delay: number;
   depth: number;
 }> = [
-  { top: "6%", left: "2%", size: 128, delay: 0, depth: 1.2 },
-  { top: "14%", right: "0%", size: 102, delay: 0.35, depth: 2 },
-  { top: "52%", left: "-4%", size: 140, delay: 0.7, depth: 2.4 },
-  { top: "58%", right: "2%", size: 92, delay: 1.05, depth: 1.4 },
-  { top: "78%", left: "14%", size: 76, delay: 1.4, depth: 1.8 },
-  { top: "8%", left: "48%", size: 68, delay: 0.2, depth: 2.8 },
+  { src: SEAL_SRCS[0], top: "4%", left: "0%", size: 118, delay: 0, depth: 1.2 },
+  { src: SEAL_SRCS[1], top: "12%", right: "-2%", size: 150, delay: 0.35, depth: 2 },
+  { src: SEAL_SRCS[2], top: "48%", left: "-6%", size: 168, delay: 0.7, depth: 2.4 },
+  { src: SEAL_SRCS[0], top: "56%", right: "0%", size: 96, delay: 1.05, depth: 1.4 },
+  { src: SEAL_SRCS[1], top: "74%", left: "10%", size: 132, delay: 1.4, depth: 1.8 },
+  { src: SEAL_SRCS[2], top: "6%", left: "42%", size: 110, delay: 0.2, depth: 2.8 },
+  { src: SEAL_SRCS[1], top: "34%", right: "8%", size: 100, delay: 0.9, depth: 1.6 },
+  { src: SEAL_SRCS[2], top: "82%", right: "18%", size: 120, delay: 1.6, depth: 2.1 },
 ];
 
 function AppPromoContent() {
@@ -115,22 +124,22 @@ function AppPromoContent() {
 
         gsap.utils.toArray<HTMLElement>(".app-promo-chapter").forEach((chapter, i) => {
           gsap.from(chapter.querySelectorAll(".app-promo-chapter-inner > *"), {
-            y: 32,
+            y: 20,
             opacity: 0,
-            duration: 0.7,
-            stagger: 0.07,
+            duration: 0.55,
+            stagger: 0.05,
             ease: "power2.out",
             scrollTrigger: {
               trigger: chapter,
-              start: "top 68%",
+              start: "top 75%",
               toggleActions: "play none none reverse",
             },
           });
 
           ScrollTrigger.create({
             trigger: chapter,
-            start: "top center",
-            end: "bottom center",
+            start: "top 55%",
+            end: "bottom 45%",
             onEnter: () => showScreen(i),
             onEnterBack: () => showScreen(i),
           });
@@ -245,10 +254,10 @@ function AppPromoContent() {
         </div>
 
         <div className="app-promo-hero-visual" aria-hidden="true">
-          {SEALS.slice(0, 4).map((seal, i) => (
+          {SEALS.slice(0, 5).map((seal, i) => (
             <img
               key={`hero-seal-${i}`}
-              src="/brand/selo-stamp.png"
+              src={seal.src}
               alt=""
               className="app-promo-seal app-promo-seal--hero"
               data-depth={seal.depth}
@@ -256,8 +265,7 @@ function AppPromoContent() {
                 top: seal.top,
                 left: seal.left,
                 right: seal.right,
-                width: seal.size * 0.85,
-                height: seal.size * 0.85,
+                width: seal.size * 0.9,
                 animationDelay: `${seal.delay}s`,
               }}
             />
@@ -277,8 +285,8 @@ function AppPromoContent() {
         <p className="app-promo-eyebrow">JÁ DISPONÍVEL</p>
         <h2>Cartão de selos, desafios, QR e recompensas.</h2>
         <p>
-          Junta selos em cada visita, completa desafios e desbloqueia entradas e
-          prémios — tudo na App 56.
+          Junta selos em cada visita, completa desafios e desbloqueia
+          recompensas — tudo na App 56.
         </p>
       </section>
 
@@ -288,7 +296,7 @@ function AppPromoContent() {
             {SEALS.map((seal, i) => (
               <img
                 key={i}
-                src="/brand/selo-stamp.png"
+                src={seal.src}
                 alt=""
                 className="app-promo-seal"
                 data-depth={seal.depth}
@@ -297,7 +305,6 @@ function AppPromoContent() {
                   left: seal.left,
                   right: seal.right,
                   width: seal.size,
-                  height: seal.size,
                   animationDelay: `${seal.delay}s`,
                 }}
               />
@@ -434,7 +441,7 @@ function PhoneScreen({ index }: { index: number }) {
             <h3>
               5<span>/10</span>
             </h3>
-            <small>Faltam 5 selos para entrada grátis</small>
+            <small>Continua a juntar selos</small>
           </div>
           <em className="app-promo-phone-qr-fab">QR</em>
         </div>
@@ -473,22 +480,22 @@ function PhoneScreen({ index }: { index: number }) {
     return (
       <PhoneChrome level="Bronze" activeTab="cartao">
         <p className="app-promo-phone-kicker">Recompensas</p>
-        <h3 className="app-promo-phone-section-title">Por selos totais</h3>
+        <h3 className="app-promo-phone-section-title">Os teus prémios</h3>
         <div className="app-promo-phone-card">
-          <span>10 SELOS</span>
-          <p>Entrada grátis</p>
+          <span>RECOMPENSA</span>
+          <p>Desbloqueada com selos</p>
         </div>
         <div className="app-promo-phone-card">
-          <span>20 SELOS</span>
-          <p>Hambúrguer grátis</p>
+          <span>RECOMPENSA</span>
+          <p>Mais visitas, mais prémios</p>
         </div>
         <div className="app-promo-phone-card">
-          <span>30 SELOS</span>
-          <p>Cerveja + petisco</p>
+          <span>RECOMPENSA</span>
+          <p>Usa na caixa quando quiseres</p>
         </div>
         <div className="app-promo-phone-card app-promo-phone-card--teal">
           <span>DISPONÍVEL</span>
-          <p>Entrada grátis</p>
+          <p>Prémio pronto a usar</p>
           <em>Usar</em>
         </div>
       </PhoneChrome>
@@ -502,15 +509,15 @@ function PhoneScreen({ index }: { index: number }) {
         <h3 className="app-promo-phone-section-title">Desafios</h3>
         <p className="app-promo-phone-meta">12 visitas · última 3 jul</p>
         <div className="app-promo-phone-card">
-          <span>DESAFIO MENSAL · 3/5</span>
-          <p>5 visitas no mês → +4 selos</p>
+          <span>DESAFIO MENSAL</span>
+          <p>Visita este mês e ganha bónus</p>
           <div className="app-promo-phone-progress">
             <i style={{ width: "60%" }} />
           </div>
         </div>
         <div className="app-promo-phone-card">
-          <span>SEQUÊNCIA SEMANAL · 2/3</span>
-          <p>3 sequências semanais → selo extra</p>
+          <span>SEQUÊNCIA SEMANAL</span>
+          <p>Mantém o ritmo e ganha selo extra</p>
           <div className="app-promo-phone-progress app-promo-phone-progress--green">
             <i style={{ width: "66%" }} />
           </div>

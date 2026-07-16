@@ -211,7 +211,7 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       titleLine1: "A Cinquenta & Seis",
       titleLine2: "no teu bolso.",
       description:
-        "Cartão de selos digital, desafios, QR na caixa e recompensas. Junta visitas, desbloqueia entradas e leva a casa contigo.",
+        "Cartão de selos digital, desafios, QR na caixa e recompensas. Junta visitas e leva a casa contigo.",
       point1: "Desafios mensais, sequências semanais e convites",
       point2: "Mostra o QR na caixa e ganha selos",
       cta: "Abrir app",
@@ -352,7 +352,7 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       titleLine1: "Cinquenta & Seis",
       titleLine2: "in your pocket.",
       description:
-        "Digital stamp card, challenges, QR at the till and rewards. Collect visits, unlock free starters and take the house with you.",
+        "Digital stamp card, challenges, QR at the till and rewards. Collect visits and take the house with you.",
       point1: "Monthly challenges, weekly sequences and invites",
       point2: "Show your QR at the till to earn stamps",
       cta: "Open app",
