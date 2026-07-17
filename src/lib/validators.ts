@@ -18,6 +18,13 @@ const KITCHEN_TRANSITIONS: Partial<
   pronto: ["entregue", "em_preparacao"],
 };
 
+/** Bebidas (bar/caixa): entram logo na fila e podem avançar a partir de pendente. */
+const BAR_TRANSITIONS: Partial<Record<OrderItemStatus, OrderItemStatus[]>> = {
+  pendente: ["em_preparacao", "pronto"],
+  em_preparacao: ["pronto"],
+  pronto: ["entregue", "em_preparacao"],
+};
+
 export function assertTableNumber(tableNumber: number): number {
   if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > TABLE_COUNT) {
     throw new Error(`Mesa inválida (1–${TABLE_COUNT})`);
@@ -84,9 +91,12 @@ export function assertMistoSplit(
 
 export function assertKitchenStatusTransition(
   current: OrderItemStatus,
-  next: OrderItemStatus
+  next: OrderItemStatus,
+  options?: { bar?: boolean }
 ): void {
-  const allowed = KITCHEN_TRANSITIONS[current];
+  const allowed = (options?.bar ? BAR_TRANSITIONS : KITCHEN_TRANSITIONS)[
+    current
+  ];
   if (!allowed?.includes(next)) {
     throw new Error(
       `Transição inválida: ${current} → ${next}`

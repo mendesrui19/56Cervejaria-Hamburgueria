@@ -112,6 +112,8 @@ export function exportKpisCsv(kpis: AdminKPIs) {
     [],
     ["Itens cancelados (qty)", String(kpis.cancelledItems.count)],
     ["Valor cancelado", kpis.cancelledItems.value.toFixed(2)],
+    ["Taxa cancelamentos (%)", (kpis.cancelRate * 100).toFixed(1)],
+    ["Tempo médio mesa (min)", kpis.avgTableMinutes.toFixed(0)],
     [],
     ["Top produtos", "Qty", "Receita"],
   ];

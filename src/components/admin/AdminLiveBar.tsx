@@ -39,7 +39,7 @@ export function AdminLiveBar() {
   const kitchen = countKitchenItems(state);
 
   return (
-    <div className="rounded-2xl border border-emerald-300/40 bg-emerald-50/80 p-4 mb-6">
+    <div className="rounded-2xl border border-emerald-300/40 bg-emerald-50/80 p-4">
       <p className="text-[10px] uppercase tracking-widest text-emerald-800/70 font-bold mb-3">
         Serviço agora
       </p>

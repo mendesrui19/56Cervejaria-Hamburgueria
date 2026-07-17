@@ -1,4 +1,9 @@
-import type { MenuCategory, MenuItem, OrderItemCustomization } from "./types";
+import type {
+  MenuCategory,
+  MenuItem,
+  MenuOptionGroup,
+  OrderItemCustomization,
+} from "./types";
 
 export const MENU_CATEGORIES: MenuCategory[] = [
   {
@@ -67,6 +72,18 @@ const KIDS_OPTIONS = [
   { id: "tiras", label: "4 Tiras de Frango + Batata Frita", default: true },
   { id: "cheeseburger", label: "Cheeseburger (fiambre, ketchup) + Batata Frita" },
 ];
+
+const SOFT_DRINK_SERVE_OPTIONS: MenuOptionGroup = {
+  id: "servir",
+  label: "Como servir",
+  required: true,
+  options: [
+    { id: "normal", label: "Só a bebida", default: true },
+    { id: "gelo", label: "Com gelo" },
+    { id: "limao", label: "Com limão" },
+    { id: "gelo-limao", label: "Gelo e limão" },
+  ],
+};
 
 export const MENU_ITEMS: MenuItem[] = [
   // PARA ABRIR O APETITE
@@ -408,6 +425,7 @@ export const MENU_ITEMS: MenuItem[] = [
     categoryId: "bebidas",
     ingredients: [],
     skipKitchen: true,
+    optionGroups: [SOFT_DRINK_SERVE_OPTIONS],
   },
   {
     id: "coca-cola",
@@ -416,6 +434,7 @@ export const MENU_ITEMS: MenuItem[] = [
     categoryId: "bebidas",
     ingredients: [],
     skipKitchen: true,
+    optionGroups: [SOFT_DRINK_SERVE_OPTIONS],
   },
   {
     id: "ice-tea",
@@ -424,6 +443,7 @@ export const MENU_ITEMS: MenuItem[] = [
     categoryId: "bebidas",
     ingredients: [],
     skipKitchen: true,
+    optionGroups: [SOFT_DRINK_SERVE_OPTIONS],
   },
   {
     id: "7up",
@@ -432,6 +452,7 @@ export const MENU_ITEMS: MenuItem[] = [
     categoryId: "bebidas",
     ingredients: [],
     skipKitchen: true,
+    optionGroups: [SOFT_DRINK_SERVE_OPTIONS],
   },
   {
     id: "brisa",
@@ -440,6 +461,7 @@ export const MENU_ITEMS: MenuItem[] = [
     categoryId: "bebidas",
     ingredients: [],
     skipKitchen: true,
+    optionGroups: [SOFT_DRINK_SERVE_OPTIONS],
   },
 
   // CERVEJAS
@@ -626,16 +648,18 @@ export function getDefaultCustomizations(
 ): OrderItemCustomization[] {
   if (!item.optionGroups) return [];
 
-  return item.optionGroups.map((group) => {
-    const option =
-      group.options.find((o) => o.default) ?? group.options[0];
-    return {
-      groupId: group.id,
-      groupLabel: group.label,
-      optionId: option.id,
-      optionLabel: option.label,
-    };
-  });
+  return item.optionGroups
+    .filter((group) => group.required)
+    .map((group) => {
+      const option =
+        group.options.find((o) => o.default) ?? group.options[0];
+      return {
+        groupId: group.id,
+        groupLabel: group.label,
+        optionId: option.id,
+        optionLabel: option.label,
+      };
+    });
 }
 
 export const FOOD_CATEGORY_IDS = [
@@ -681,7 +705,9 @@ export function getAddonItems(): MenuItem[] {
 }
 
 export function supportsItemAddons(item: MenuItem): boolean {
-  return item.categoryId === "hamburguer" || !!item.optionGroups?.length;
+  // Extras (batata, ovo…) só em pratos — nunca em bebidas/bar
+  if (item.skipKitchen || item.isAddon) return false;
+  return item.categoryId === "hamburguer";
 }
 
 export function isExtraCustomization(groupId: string): boolean {

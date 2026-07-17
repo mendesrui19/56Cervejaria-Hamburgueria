@@ -56,6 +56,20 @@ async function fetchCatalogRows() {
   return { categoryRows, itemRows };
 }
 
+function mergeSeedOptionGroups(catalog: MenuCatalog): MenuCatalog {
+  const seedById = new Map(MENU_ITEMS.map((item) => [item.id, item]));
+
+  return {
+    ...catalog,
+    items: catalog.items.map((item) => {
+      const seed = seedById.get(item.id);
+      if (!seed?.optionGroups?.length) return item;
+      if (item.optionGroups?.length) return item;
+      return { ...item, optionGroups: seed.optionGroups };
+    }),
+  };
+}
+
 export async function loadCatalog(): Promise<MenuCatalog> {
   const { categoryRows, itemRows } = await fetchCatalogRows();
 
@@ -65,10 +79,8 @@ export async function loadCatalog(): Promise<MenuCatalog> {
     return initial;
   }
 
-  return assembleMenuCatalog(
-    await readCatalogMeta(),
-    categoryRows,
-    itemRows
+  return mergeSeedOptionGroups(
+    assembleMenuCatalog(await readCatalogMeta(), categoryRows, itemRows)
   );
 }
 
@@ -84,7 +96,14 @@ export async function getCatalogItem(id: string): Promise<MenuItem | undefined> 
     .where(eq(menuItems.id, id))
     .limit(1);
 
-  return row ? mapMenuItem(row) : undefined;
+  if (!row) return undefined;
+
+  const item = mapMenuItem(row);
+  const seed = MENU_ITEMS.find((entry) => entry.id === id);
+  if (!item.optionGroups?.length && seed?.optionGroups?.length) {
+    return { ...item, optionGroups: seed.optionGroups };
+  }
+  return item;
 }
 
 export async function getActiveCatalog(): Promise<MenuCatalog> {

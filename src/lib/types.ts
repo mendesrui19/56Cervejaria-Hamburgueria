@@ -263,6 +263,10 @@ export interface AdminKPIs {
   byDay: AdminDailyRow[];
   byHour: AdminHourlyRow[];
   cancelledItems: { count: number; value: number };
+  /** Cancelled value / (subtotal + cancelled value), 0–1. */
+  cancelRate: number;
+  /** Average minutes from order open to payment. */
+  avgTableMinutes: number;
   comparison: AdminComparison;
 }
 

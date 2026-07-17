@@ -308,6 +308,25 @@ export async function fetchKitchen() {
   return res.json();
 }
 
+export async function fetchBar() {
+  const res = await apiFetch("/api/bar", { cache: "no-store" });
+  if (!res.ok) throw new Error("Erro ao carregar bebidas");
+  return res.json();
+}
+
+export async function updateBarItemStatus(itemId: string, status: string) {
+  const res = await apiFetch(`/api/bar/items/${itemId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao atualizar bebida");
+  }
+  return res.json();
+}
+
 export async function fetchCashier() {
   const res = await apiFetch("/api/cashier", { cache: "no-store" });
   if (!res.ok) throw new Error("Erro ao carregar caixa");
@@ -317,7 +336,7 @@ export async function fetchCashier() {
 export async function fetchAdminAnalytics(period: string, date?: string) {
   const params = new URLSearchParams({ period });
   if (date) params.set("date", date);
-  const res = await apiFetch(`/api/admin/analytics?${params}`, {
+  const res = await apiFetch(`/api/gestor56/analytics?${params}`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Erro ao carregar KPIs");
@@ -331,7 +350,7 @@ export async function fetchAdminHistory(
   const params = new URLSearchParams({ period });
   if (options?.date) params.set("date", options.date);
   if (options?.table) params.set("table", String(options.table));
-  const res = await apiFetch(`/api/admin/history?${params}`, {
+  const res = await apiFetch(`/api/gestor56/history?${params}`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Erro ao carregar histórico");
@@ -339,7 +358,7 @@ export async function fetchAdminHistory(
 }
 
 export async function fetchAdminCatalog() {
-  const res = await apiFetch("/api/admin/catalog", { cache: "no-store" });
+  const res = await apiFetch("/api/gestor56/catalog", { cache: "no-store" });
   if (!res.ok) throw new Error("Erro ao carregar catálogo");
   return res.json();
 }
@@ -356,7 +375,7 @@ export async function updateCatalogItem(
     kitchenNotes?: string;
   }
 ) {
-  const res = await apiFetch(`/api/admin/catalog/items/${id}`, {
+  const res = await apiFetch(`/api/gestor56/catalog/items/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -376,7 +395,7 @@ export async function createCatalogItem(payload: {
   isAddon?: boolean;
   kitchenNotes?: string;
 }) {
-  const res = await apiFetch("/api/admin/catalog/items", {
+  const res = await apiFetch("/api/gestor56/catalog/items", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -389,7 +408,7 @@ export async function createCatalogItem(payload: {
 }
 
 export async function deleteCatalogItem(id: string) {
-  const res = await apiFetch(`/api/admin/catalog/items/${id}`, {
+  const res = await apiFetch(`/api/gestor56/catalog/items/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) {
@@ -400,7 +419,7 @@ export async function deleteCatalogItem(id: string) {
 }
 
 export async function fetchAdminAudit() {
-  const res = await apiFetch("/api/admin/audit", { cache: "no-store" });
+  const res = await apiFetch("/api/gestor56/audit", { cache: "no-store" });
   if (!res.ok) throw new Error("Erro ao carregar auditoria");
   return res.json();
 }

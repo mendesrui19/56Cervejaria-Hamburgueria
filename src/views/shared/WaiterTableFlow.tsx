@@ -612,8 +612,10 @@ export function WaiterTableFlow({
           onBack={goMesas}
           backLabel="Mesas"
           compact={nested}
+          showLogout={!nested}
           action={
             <button
+              type="button"
               onClick={() => setScreen("pedido")}
               className={`flex flex-col items-center justify-center rounded-xl bg-brand-gold text-white touch-manipulation px-2 ${
                 nested ? "min-w-[44px] min-h-[44px]" : "min-w-[52px] min-h-[52px]"

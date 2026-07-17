@@ -9,7 +9,7 @@ const PROTECTED_PAGE_PREFIXES = [
   "/empregado",
   "/cozinha",
   "/caixa",
-  "/admin",
+  "/gestor56",
   "/app/scanner",
 ];
 const PROTECTED_API_PREFIXES = [
@@ -17,9 +17,10 @@ const PROTECTED_API_PREFIXES = [
   "/api/tables",
   "/api/orders",
   "/api/kitchen",
+  "/api/bar",
   "/api/cashier",
   "/api/menu",
-  "/api/admin",
+  "/api/gestor56",
   "/api/loyalty",
 ];
 
@@ -59,15 +60,16 @@ export const config = {
     "/empregado/:path*",
     "/cozinha/:path*",
     "/caixa/:path*",
-    "/admin/:path*",
+    "/gestor56/:path*",
     "/app/scanner/:path*",
     "/api/loyalty/:path*",
     "/api/menu",
-    "/api/admin/:path*",
+    "/api/gestor56/:path*",
     "/api/state",
     "/api/tables/:path*",
     "/api/orders/:path*",
     "/api/kitchen/:path*",
+    "/api/bar/:path*",
     "/api/cashier/:path*",
   ],
 };

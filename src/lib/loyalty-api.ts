@@ -132,7 +132,7 @@ export async function addLoyaltyStampStaff(input: {
 }
 
 export async function fetchAdminLoyaltyStats(): Promise<LoyaltyAdminStats> {
-  const res = await fetch("/api/admin/loyalty/stats", {
+  const res = await fetch("/api/gestor56/loyalty/stats", {
     ...STAFF_FETCH,
     cache: "no-store",
   });

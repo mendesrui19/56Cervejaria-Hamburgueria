@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LogoutButton } from "@/components/LogoutButton";
+import { AppHeader } from "@/components/AppHeader";
 import { StampCelebration } from "@/components/fidelizacao/StampCelebration";
 import { StampGrid } from "@/components/fidelizacao/StampGrid";
 import { parseLoyaltyQrPayload } from "@/lib/loyalty";
@@ -102,23 +101,10 @@ export default function FidelizacaoScannerView() {
         />
       )}
 
-      <header className="sticky top-0 z-30 border-b border-brand-line bg-white safe-top px-4 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <Link
-              href="/sistema"
-              className="text-xs text-brand-muted hover:text-brand-gold"
-            >
-              ← Início
-            </Link>
-            <h1 className="font-display text-xl font-bold text-brand-gold mt-1">
-              App 56 — Caixa
-            </h1>
-            <p className="text-xs text-brand-muted">Ler QR ou código do cliente</p>
-          </div>
-          <LogoutButton compact />
-        </div>
-      </header>
+      <AppHeader
+        title="App 56"
+        subtitle="Ler QR ou código do cliente"
+      />
 
       <main className="p-4 max-w-lg mx-auto space-y-4">
         <div className="card space-y-3">

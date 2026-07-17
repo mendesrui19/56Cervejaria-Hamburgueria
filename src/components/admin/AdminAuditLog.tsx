@@ -1,5 +1,6 @@
 "use client";
 
+import { FEATURE_LOYALTY } from "@/lib/feature-flags";
 import type { AuditAction, AuditLogEntry } from "@/lib/types";
 
 const ACTION_LABELS: Record<AuditAction, string> = {
@@ -38,7 +39,11 @@ function formatWhen(iso: string) {
 }
 
 export function AdminAuditLog({ logs }: { logs: AuditLogEntry[] }) {
-  if (logs.length === 0) {
+  const visibleLogs = FEATURE_LOYALTY
+    ? logs
+    : logs.filter((entry) => entry.action !== "loyalty_redeem");
+
+  if (visibleLogs.length === 0) {
     return (
       <p className="text-center text-brand-muted py-16">
         Sem registos de auditoria ainda
@@ -48,7 +53,7 @@ export function AdminAuditLog({ logs }: { logs: AuditLogEntry[] }) {
 
   return (
     <div className="space-y-2">
-      {logs.map((entry) => (
+      {visibleLogs.map((entry) => (
         <div
           key={entry.id}
           className="card flex flex-wrap items-start gap-3 py-3 px-4"

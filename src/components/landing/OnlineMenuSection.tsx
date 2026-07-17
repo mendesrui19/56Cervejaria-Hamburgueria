@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { MenuBookCoverPreview } from "@/components/menu/MenuBookCoverPreview";
 import { useLandingLocale } from "@/contexts/LandingLocaleContext";
+import { FEATURE_LOYALTY } from "@/lib/feature-flags";
 
 export function OnlineMenuSection() {
   const { copy } = useLandingLocale();
@@ -20,9 +21,11 @@ export function OnlineMenuSection() {
               <Link href="/carta" className="menu-section-cta">
                 {copy.menu.openFull}
               </Link>
-              <Link href="/app-promo" className="menu-section-cta menu-section-cta--secondary">
-                App 56
-              </Link>
+              {FEATURE_LOYALTY ? (
+                <Link href="/app-promo" className="menu-section-cta menu-section-cta--secondary">
+                  App 56
+                </Link>
+              ) : null}
             </div>
           </div>
 

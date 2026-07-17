@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LanguageSwitcher } from "@/components/landing/LanguageSwitcher";
 import { useLandingLocale } from "@/contexts/LandingLocaleContext";
 import { BUSINESS } from "@/data/landing";
+import { FEATURE_LOYALTY } from "@/lib/feature-flags";
 
 type LandingNavbarProps = {
   /** Prefix for section anchors when not on the home page (e.g. "/"). */
@@ -24,18 +25,25 @@ export function LandingNavbar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  const navLinks = useMemo(
-    () => [
+  const navLinks = useMemo(() => {
+    const links = [
       { href: `${sectionPrefix}#sobre`, label: copy.nav.about },
       { href: `${sectionPrefix}#menu`, label: copy.nav.menu },
       { href: `${sectionPrefix}#galeria`, label: copy.nav.gallery },
       { href: `${sectionPrefix}#opinioes`, label: copy.nav.reviews },
       { href: `${sectionPrefix}#cervejaria`, label: copy.nav.brewery },
-      { href: `${sectionPrefix}#app`, label: copy.nav.app },
       { href: `${sectionPrefix}#contacto`, label: copy.nav.contact },
-    ],
-    [copy, sectionPrefix]
-  );
+    ];
+
+    if (FEATURE_LOYALTY) {
+      links.splice(5, 0, {
+        href: `${sectionPrefix}#app`,
+        label: copy.nav.app,
+      });
+    }
+
+    return links;
+  }, [copy, sectionPrefix]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 32);

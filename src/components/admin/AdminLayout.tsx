@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { AppHeader } from "@/components/AppHeader";
+import { FEATURE_LOYALTY } from "@/lib/feature-flags";
 
 export type AdminSection =
   | "relatorios"
@@ -10,14 +12,18 @@ export type AdminSection =
   | "fidelizacao"
   | "catalogo";
 
-const NAV: { id: AdminSection; label: string; desc: string }[] = [
-  { id: "relatorios", label: "Relatórios", desc: "Dia, semana e mês" },
-  { id: "operacoes", label: "Operações", desc: "Mapa de mesas live" },
-  { id: "historico", label: "Histórico", desc: "Contas e detalhe" },
-  { id: "auditoria", label: "Auditoria", desc: "Cancelamentos e acções" },
+const NAV_ALL: { id: AdminSection; label: string; desc: string }[] = [
+  { id: "relatorios", label: "Dashboard", desc: "Vista do serviço" },
+  { id: "operacoes", label: "Operações", desc: "Mapa de mesas" },
+  { id: "historico", label: "Histórico", desc: "Contas fechadas" },
+  { id: "auditoria", label: "Auditoria", desc: "Excepções" },
   { id: "fidelizacao", label: "App 56", desc: "Cartão de selos" },
   { id: "catalogo", label: "Catálogo", desc: "Preços e menu" },
 ];
+
+const NAV = FEATURE_LOYALTY
+  ? NAV_ALL
+  : NAV_ALL.filter((item) => item.id !== "fidelizacao");
 
 interface AdminLayoutProps {
   section: AdminSection;
@@ -74,7 +80,7 @@ export function AdminLayout({
             Gestão
           </p>
           <h1 className="font-display text-lg font-bold text-brand-gold mt-1">
-            Admin
+            Gestor56
           </h1>
         </div>
 
@@ -89,30 +95,22 @@ export function AdminLayout({
           ))}
         </nav>
 
-        <div className="p-3 border-t border-brand-line">
+        <div className="p-3 border-t border-brand-line space-y-1">
           <Link
             href="/sistema"
             className="block rounded-xl px-3 py-2.5 text-xs font-semibold text-brand-muted hover:text-brand-gold hover:bg-brand-surface transition-colors"
           >
-            Voltar ao início
+            ← Sistema
           </Link>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 pb-[72px] md:pb-0">
-        <header className="sticky top-0 z-30 border-b border-brand-line bg-white/95 backdrop-blur-md safe-top">
-          <div className="px-4 py-4 flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="font-display text-xl font-bold text-brand-gold">
-                {title}
-              </h2>
-              {subtitle && (
-                <p className="text-brand-muted text-sm mt-0.5">{subtitle}</p>
-              )}
-            </div>
-            {toolbar && <div className="shrink-0">{toolbar}</div>}
-          </div>
-        </header>
+        <AppHeader
+          title={title}
+          subtitle={subtitle}
+          actions={toolbar}
+        />
 
         <main className="flex-1 overflow-y-auto scrollbar-thin p-4 lg:p-6">
           <div className="max-w-6xl mx-auto w-full">{children}</div>

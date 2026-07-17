@@ -1,5 +1,7 @@
 "use client";
 
+import { LogoutButton } from "@/components/LogoutButton";
+
 interface ScreenHeaderProps {
   title: string;
   subtitle?: string;
@@ -7,6 +9,8 @@ interface ScreenHeaderProps {
   backLabel?: string;
   action?: React.ReactNode;
   compact?: boolean;
+  /** Mostrar Sair à direita (default true). */
+  showLogout?: boolean;
 }
 
 export function ScreenHeader({
@@ -16,25 +20,28 @@ export function ScreenHeader({
   backLabel = "Voltar",
   action,
   compact = false,
+  showLogout = true,
 }: ScreenHeaderProps) {
   return (
     <header className="staff-header sticky top-0 z-40 border-b border-brand-line bg-white shrink-0">
       <div
-        className={`flex items-center gap-2 shrink-0 ${
-          compact ? "px-3 py-2" : "px-3 py-3"
+        className={`grid grid-cols-[minmax(4.5rem,1fr)_auto_minmax(4.5rem,1fr)] items-center gap-2 ${
+          compact ? "px-3 py-2" : "px-3 py-2.5"
         }`}
       >
-        <button
-          onClick={onBack}
-          className={`flex items-center justify-center rounded-xl bg-brand-dark border border-brand-line touch-manipulation active:bg-white px-2 ${
-            compact ? "min-w-[44px] min-h-[44px]" : "min-w-[52px] min-h-[52px]"
-          }`}
-        >
-          <span className="text-[10px] text-brand-muted font-semibold uppercase tracking-wide">
-            {backLabel}
-          </span>
-        </button>
-        <div className="flex-1 min-w-0">
+        <div className="justify-self-start min-w-0">
+          <button
+            type="button"
+            onClick={onBack}
+            className="staff-chrome-nav-btn"
+            aria-label={backLabel}
+          >
+            <span aria-hidden="true">←</span>
+            <span>{backLabel}</span>
+          </button>
+        </div>
+
+        <div className="text-center min-w-0 px-1">
           <h1
             className={`font-display font-bold text-brand-gold truncate ${
               compact ? "text-base" : "text-lg"
@@ -42,11 +49,15 @@ export function ScreenHeader({
           >
             {title}
           </h1>
-          {subtitle && (
-            <p className="text-brand-muted text-xs truncate">{subtitle}</p>
-          )}
+          {subtitle ? (
+            <p className="text-brand-muted text-xs truncate mt-0.5">{subtitle}</p>
+          ) : null}
         </div>
-        {action}
+
+        <div className="justify-self-end flex items-center gap-1.5 min-w-0">
+          {action}
+          {showLogout ? <LogoutButton compact /> : null}
+        </div>
       </div>
     </header>
   );

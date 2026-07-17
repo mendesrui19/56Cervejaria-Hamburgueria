@@ -34,7 +34,7 @@ npm start              # porta 3056
 | `/empregado` | Mesas (1–20) + Balcão (21), pedidos, personalização, enviar cozinha, pedir conta / nova ronda |
 | `/cozinha` | Tickets, zonas, pronto/entregue, alertas, sons |
 | `/caixa` | Contas a pagar, pagamentos, loyalty, void, fecho do dia |
-| `/admin` | Relatórios, histórico, auditoria, catálogo, mapa live, stats App 56 |
+| `/gestor56` | Dashboard, histórico, auditoria, catálogo, mapa live |
 | `/app/scanner` | Ler QR/código e adicionar selos |
 
 ### App 56 (cliente)

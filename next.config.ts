@@ -44,6 +44,16 @@ const nextConfig: NextConfig = {
         destination: "/app/:path*",
         permanent: true,
       },
+      {
+        source: "/admin",
+        destination: "/gestor56",
+        permanent: true,
+      },
+      {
+        source: "/admin/:path*",
+        destination: "/gestor56/:path*",
+        permanent: true,
+      },
     ];
   },
 };

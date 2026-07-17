@@ -107,6 +107,23 @@ function computeCancelledStats(orders: Order[]): { count: number; value: number 
   return { count, value };
 }
 
+function computeAvgTableMinutes(orders: Order[]): number {
+  let totalMs = 0;
+  let count = 0;
+  const maxMs = 24 * 60 * 60 * 1000;
+
+  for (const order of orders) {
+    if (!order.paidAt || !order.createdAt) continue;
+    const ms =
+      new Date(order.paidAt).getTime() - new Date(order.createdAt).getTime();
+    if (ms <= 0 || ms > maxMs) continue;
+    totalMs += ms;
+    count += 1;
+  }
+
+  return count > 0 ? totalMs / count / 60_000 : 0;
+}
+
 function buildByDay(
   orders: Order[],
   period: AnalyticsPeriod,
@@ -325,6 +342,9 @@ export async function getAdminKPIs(
 
   const revenue = subtotal + tips;
   const orderCount = orders.length;
+  const cancelledItems = computeCancelledStats(orders);
+  const cancelBase = subtotal + cancelledItems.value;
+  const cancelRate = cancelBase > 0 ? cancelledItems.value / cancelBase : 0;
 
   return {
     period,
@@ -360,7 +380,9 @@ export async function getAdminKPIs(
     payments: computePaymentBreakdown(orders),
     byDay: buildByDay(orders, period, reference),
     byHour: buildByHour(orders),
-    cancelledItems: computeCancelledStats(orders),
+    cancelledItems,
+    cancelRate,
+    avgTableMinutes: computeAvgTableMinutes(orders),
     comparison: await buildComparison(period, reference, revenue, orderCount),
   };
 }

@@ -518,21 +518,23 @@ export async function addItemToOrder(
     }
   }
 
-  const ingredients = menuItem.skipKitchen
-    ? []
-    : buildKitchenChoices(menuItem, payload.customizations);
+  const ingredients = buildKitchenChoices(
+    menuItem,
+    payload.customizations
+  ).filter((line) => !/^como servir:\s*só a bebida$/i.test(line));
 
   const quantity = Math.max(1, Math.min(20, payload.quantity || 1));
 
   if (!menuItem.isAddon && !payload.parentItemId) {
     const existingLine = order.items.find(
       (item) =>
-        item.status === "pendente" &&
         !item.isAddon &&
         item.menuItemId === menuItem.id &&
         item.notes === payload.notes &&
         customizationsKey(item.customizations) ===
-          customizationsKey(payload.customizations)
+          customizationsKey(payload.customizations) &&
+        (item.status === "pendente" ||
+          (item.skipKitchen && item.status === "em_preparacao"))
     );
 
     if (existingLine) {
@@ -548,6 +550,8 @@ export async function addItemToOrder(
     }
   }
 
+  const isDrink = Boolean(menuItem.skipKitchen);
+  const nowIso = new Date().toISOString();
   const orderItem: OrderItem = {
     id: uuidv4(),
     menuItemId: menuItem.id,
@@ -557,12 +561,14 @@ export async function addItemToOrder(
     customizations: payload.customizations,
     notes: payload.notes,
     ingredients,
-    kitchenNotes: menuItem.skipKitchen ? undefined : menuItem.kitchenNotes,
-    status: "pendente",
+    kitchenNotes: isDrink ? undefined : menuItem.kitchenNotes,
+    // Bebidas vão logo para a fila da caixa (bar)
+    status: isDrink ? "em_preparacao" : "pendente",
+    sentToKitchenAt: isDrink ? nowIso : undefined,
     isAddon: menuItem.isAddon ?? false,
-    skipKitchen: menuItem.skipKitchen ?? false,
+    skipKitchen: isDrink,
     parentItemId: payload.parentItemId,
-    createdAt: new Date().toISOString(),
+    createdAt: nowIso,
   };
 
   await insertOrderItem(order.id, orderItem);
@@ -685,7 +691,9 @@ export async function updateItemStatus(
   if (!orderBefore) throw new Error("Pedido não encontrado");
   if (orderBefore.paidAt) throw new Error("Pedido já foi pago");
 
-  assertKitchenStatusTransition(itemRow.status as OrderItemStatus, status);
+  assertKitchenStatusTransition(itemRow.status as OrderItemStatus, status, {
+    bar: Boolean(itemRow.skipKitchen),
+  });
 
   const now = new Date().toISOString();
   const readyAt =
@@ -695,11 +703,19 @@ export async function updateItemStatus(
       ? null
       : itemRow.readyAt;
 
+  const sentToKitchenAt =
+    itemRow.skipKitchen &&
+    !itemRow.sentToKitchenAt &&
+    (status === "em_preparacao" || status === "pronto")
+      ? now
+      : itemRow.sentToKitchenAt;
+
   await db
     .update(orderItems)
     .set({
       status,
       readyAt: readyAt ?? null,
+      sentToKitchenAt: sentToKitchenAt ?? null,
     })
     .where(eq(orderItems.id, itemId));
 
@@ -1201,7 +1217,7 @@ export async function voidPayment(orderId: string): Promise<Order> {
     if (item.status === "cancelado") continue;
 
     const nextStatus = item.skipKitchen
-      ? "pendente"
+      ? "em_preparacao"
       : item.sentToKitchenAt
       ? "pronto"
       : "pendente";
@@ -1211,6 +1227,10 @@ export async function voidPayment(orderId: string): Promise<Order> {
       .set({
         status: nextStatus,
         readyAt: nextStatus === "pronto" ? item.readyAt ?? now : null,
+        sentToKitchenAt:
+          item.skipKitchen && !item.sentToKitchenAt
+            ? now
+            : item.sentToKitchenAt ?? null,
       })
       .where(eq(orderItems.id, item.id));
   }
@@ -1248,18 +1268,21 @@ export async function voidPayment(orderId: string): Promise<Order> {
 }
 
 async function resolveKitchenChoices(item: OrderItem): Promise<string[]> {
-  if (item.skipKitchen) return [];
-
   const menuItem = await getCatalogItem(item.menuItemId);
-  return menuItem
+  const choices = menuItem
     ? buildKitchenChoices(menuItem, item.customizations)
     : buildKitchenChoicesFromCustomizations(item.customizations);
+
+  // Opção por defeito das refrigerantes — não poluir o ticket do bar
+  return choices.filter(
+    (line) => !/^como servir:\s*só a bebida$/i.test(line)
+  );
 }
 
 function toKitchenTicketItem(
   item: OrderItem,
   choices: string[],
-  kitchenZone: KitchenZone
+  kitchenZone?: KitchenZone | null
 ): KitchenTicketItem {
   return {
     id: item.id,
@@ -1271,7 +1294,7 @@ function toKitchenTicketItem(
     readyAt: item.readyAt,
     choices,
     kitchenNotes: item.kitchenNotes,
-    kitchenZone,
+    kitchenZone: kitchenZone ?? undefined,
   };
 }
 
@@ -1351,6 +1374,84 @@ export async function getKitchenOrders(): Promise<
       createdAt: order.createdAt,
       kitchenAlert: order.kitchenAlert,
       kitchenAlertAt: order.kitchenAlertAt,
+    });
+  }
+
+  return results.sort(
+    (a, b) =>
+      new Date(a.items[0]?.sentToKitchenAt ?? a.createdAt).getTime() -
+      new Date(b.items[0]?.sentToKitchenAt ?? b.createdAt).getTime()
+  );
+}
+
+/** Fila de bebidas para a caixa (bar) — espelho da cozinha só com skipKitchen. */
+export async function getBarOrders(): Promise<
+  Array<{
+    orderId: string;
+    tableNumber: number;
+    waiterName: string;
+    items: KitchenTicketItem[];
+    createdAt: string;
+  }>
+> {
+  const db = getDb();
+  const activeOrders = await db
+    .select()
+    .from(orders)
+    .where(isNull(orders.paidAt))
+    .orderBy(asc(orders.createdAt));
+
+  const results: Array<{
+    orderId: string;
+    tableNumber: number;
+    waiterName: string;
+    items: KitchenTicketItem[];
+    createdAt: string;
+  }> = [];
+
+  for (const orderRow of activeOrders) {
+    const order = await fetchOrderRows(orderRow.id);
+    if (!order) continue;
+
+    const visibleItems = order.items.filter(
+      (item) =>
+        item.skipKitchen &&
+        !item.isAddon &&
+        item.status !== "cancelado" &&
+        item.status !== "entregue" &&
+        (item.status === "em_preparacao" ||
+          item.status === "pronto" ||
+          item.status === "pendente")
+    );
+
+    if (visibleItems.length === 0) continue;
+
+    const items = await Promise.all(
+      visibleItems.map(async (item) => {
+        const choices =
+          item.ingredients.length > 0
+            ? item.ingredients
+            : await resolveKitchenChoices(item);
+        return toKitchenTicketItem(item, choices, null);
+      })
+    );
+
+    items.sort((a, b) => {
+      const rank = (s: string) =>
+        s === "pendente" || s === "em_preparacao" ? 0 : 1;
+      const byStatus = rank(a.status) - rank(b.status);
+      if (byStatus !== 0) return byStatus;
+      return (a.sentToKitchenAt ?? a.id).localeCompare(
+        b.sentToKitchenAt ?? b.id
+      );
+    });
+
+    results.push({
+      orderId: order.id,
+      tableNumber: order.tableNumber,
+      waiterName: order.waiterName,
+      items,
+      createdAt: order.createdAt,
     });
   }
 

@@ -18,13 +18,17 @@ import {
 } from "@/contexts/LandingLocaleContext";
 import { BUSINESS } from "@/data/landing";
 import { FOOD_PHOTOS } from "@/data/food-photos";
+import { FEATURE_LOYALTY } from "@/lib/feature-flags";
 
 function LandingViewContent() {
   const { copy } = useLandingLocale();
 
   return (
     <main className="landing-page bg-[#f4efe6] text-[#1a1410] landing-has-mobile-bar">
-      <LandingNavbar openAppHref="/app-promo" openAppLabel={copy.app.cta} />
+      <LandingNavbar
+        openAppHref={FEATURE_LOYALTY ? "/app-promo" : undefined}
+        openAppLabel={copy.app.cta}
+      />
       <LandingPhoneFab />
       <HeroSection />
 
@@ -92,7 +96,7 @@ function LandingViewContent() {
         </div>
       </RevealSection>
 
-      <LoyaltyAppSection />
+      {FEATURE_LOYALTY ? <LoyaltyAppSection /> : null}
 
       <RevealSection id="galeria" className="py-20 sm:py-28">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">

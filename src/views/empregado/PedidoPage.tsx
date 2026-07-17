@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { LogoutButton } from "@/components/LogoutButton";
+import { AppHeader } from "@/components/AppHeader";
 import { ItemStatusBadge } from "@/components/StatusBadge";
 import {
   ScreenBody,
@@ -251,6 +250,7 @@ export function PedidoPage({
         onBack={onBack}
         backLabel="Menu"
         compact={nested}
+        showLogout={!nested}
         action={
           <button
             type="button"
@@ -446,6 +446,7 @@ export function MesaActionsPage({
         onBack={onBack}
         backLabel="Pedido"
         compact={nested}
+        showLogout={!nested}
       />
 
       <ScreenBody>
@@ -604,7 +605,7 @@ export function MesasPage({
   onSelectTable,
   showPortalLink = true,
   portalHref = "/sistema",
-  portalLabel = "Início",
+  portalLabel = "Sistema",
   namePlaceholder = "O seu nome (empregado)",
   nested = false,
 }: MesasPageProps) {
@@ -632,35 +633,19 @@ export function MesasPage({
 
   return (
     <ScreenPage nested={nested}>
-      <header
-        className={`sticky top-0 z-40 border-b border-brand-line bg-white safe-top shrink-0 ${
-          nested ? "px-3 py-2" : "px-4 py-4"
+      {!nested ? (
+        <AppHeader
+          title="Empregado"
+          subtitle={`${occupied} ocupadas · ${tables.length} mesas`}
+          hubHref={showPortalLink ? portalHref : "/sistema"}
+          hubLabel={showPortalLink ? portalLabel : "Sistema"}
+        />
+      ) : null}
+      <div
+        className={`shrink-0 border-b border-brand-line bg-white ${
+          nested ? "px-3 py-2" : "px-3 sm:px-4 py-3"
         }`}
       >
-        {!nested && (
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1 className="font-display text-xl font-bold text-brand-gold">
-                Mesas
-              </h1>
-              <p className="text-brand-muted text-xs">
-                {occupied} ocupadas · {tables.length} total
-              </p>
-            </div>
-            {showPortalLink && (
-              <div className="flex items-center gap-2">
-                <LogoutButton compact />
-                <Link
-                  href={portalHref}
-                  className="text-xs text-brand-muted px-3 py-2 rounded-lg border border-brand-gold/15"
-                >
-                  {portalLabel}
-                </Link>
-              </div>
-            )}
-            {!showPortalLink && <LogoutButton compact />}
-          </div>
-        )}
         <input
           className={`input text-sm ${nested ? "!min-h-[40px] !py-2" : ""}`}
           placeholder={namePlaceholder}
@@ -668,12 +653,12 @@ export function MesasPage({
           onChange={(e) => onSetWaiterName(e.target.value)}
           autoComplete="name"
         />
-        {nested && (
+        {nested ? (
           <p className="text-brand-muted text-[10px] mt-1.5">
             {occupied} ocupadas · {tables.length} mesas
           </p>
-        )}
-      </header>
+        ) : null}
+      </div>
 
       <ScreenBody>
         <div className={nested ? "p-3" : "p-4"}>
@@ -816,6 +801,7 @@ export function AbrirMesaPage({
         onBack={onBack}
         backLabel="Mesas"
         compact={nested}
+        showLogout={!nested}
       />
 
       <ScreenBody className="flex flex-col">

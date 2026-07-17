@@ -4,48 +4,47 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { PinScreen } from "@/components/PinScreen";
+import { FEATURE_LOYALTY } from "@/lib/feature-flags";
+import {
+  enterStaffFullscreen,
+  exitStaffFullscreen,
+} from "@/lib/staff-fullscreen";
 
 const roles = [
   {
     href: "/empregado",
-    title: "Empregado de Mesa",
+    title: "Empregado",
     abbr: "EMP",
-    description:
-      "Tomar pedidos, personalizar hambúrgueres, adicionar extras e enviar para a cozinha.",
-    color: "from-amber-50 to-white",
+    tone: "empregado",
   },
   {
     href: "/cozinha",
     title: "Cozinha",
     abbr: "CZ",
-    description:
-      "Ver todos os pedidos com ingredientes completos. Marcar como pronto.",
-    color: "from-red-50 to-white",
+    tone: "cozinha",
   },
   {
     href: "/caixa",
     title: "Caixa",
     abbr: "CX",
-    description:
-      "Pagamentos, contas por mesa e gestão de mesas quando for preciso.",
-    color: "from-green-50 to-white",
+    tone: "caixa",
   },
   {
-    href: "/admin",
-    title: "Admin",
-    abbr: "ADM",
-    description:
-      "Gerir catálogo e preços, histórico de mesas e KPIs do restaurante.",
-    color: "from-blue-50 to-white",
+    href: "/gestor56",
+    title: "Gestor56",
+    abbr: "G56",
+    tone: "admin",
   },
-  {
-    href: "/app/scanner",
-    title: "App 56",
-    abbr: "56",
-    description:
-      "Ler QR do cliente e adicionar selos ao cartão App 56.",
-    color: "from-purple-50 to-white",
-  },
+  ...(FEATURE_LOYALTY
+    ? [
+        {
+          href: "/app/scanner",
+          title: "App 56",
+          abbr: "56",
+          tone: "app56",
+        },
+      ]
+    : []),
 ];
 
 function safeNextPath(next: string | null): string | null {
@@ -56,57 +55,51 @@ function safeNextPath(next: string | null): string | null {
 
 function SistemaMenu() {
   return (
-    <main className="staff-safe-screen flex flex-col items-center justify-center p-4 sm:p-6">
-      <div className="text-center mb-8 sm:mb-12 max-w-lg">
-        <Link
-          href="/"
-          className="inline-block text-brand-muted text-xs font-semibold uppercase tracking-widest mb-4 hover:text-brand-gold transition-colors"
-        >
-          Voltar ao site
-        </Link>
-        <p className="text-brand-gold text-xs sm:text-sm font-semibold tracking-widest uppercase mb-2">
-          Sistema de Gestão
-        </p>
-        <h1 className="font-display text-4xl sm:text-5xl font-bold text-brand-gold mb-3">
-          Cinquenta & Seis
-        </h1>
-        <p className="text-brand-muted text-base sm:text-lg px-2">
-          Pedidos em tempo real — do empregado à cozinha e à caixa.
-        </p>
-      </div>
+    <main className="staff-safe-screen sistema-hub">
+      <header className="sistema-hub-header">
+        <p className="sistema-hub-kicker">Staff</p>
+        <h1 className="sistema-hub-title">Cinquenta & Seis</h1>
+      </header>
 
-      <div className="grid gap-3 sm:gap-5 w-full max-w-2xl">
+      <div
+        className={`sistema-hub-grid ${FEATURE_LOYALTY ? "sistema-hub-grid--with-app" : ""}`}
+      >
         {roles.map((role) => (
           <Link
             key={role.href}
             href={role.href}
-            className={`card bg-gradient-to-r ${role.color} active:scale-[0.98] transition-transform touch-manipulation min-h-[80px] border-brand-line shadow-sm`}
+            onClick={() => {
+              void enterStaffFullscreen();
+            }}
+            className={`sistema-hub-tile sistema-hub-tile--${role.tone}`}
           >
-            <div className="flex items-center gap-4 sm:gap-5">
-              <span className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-xl bg-brand-gold/10 border border-brand-gold/25 flex items-center justify-center text-brand-gold font-display font-bold text-xs sm:text-sm tracking-wider">
-                {role.abbr}
-              </span>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-lg sm:text-xl font-bold text-brand-gold">
-                  {role.title}
-                </h2>
-                <p className="text-brand-muted text-sm mt-0.5 leading-snug">
-                  {role.description}
-                </p>
-              </div>
-              <span className="text-brand-gold text-sm font-bold uppercase tracking-wider opacity-60">
-                Abrir
-              </span>
-            </div>
+            <span className="sistema-hub-tile-accent" aria-hidden="true" />
+            <span className="sistema-hub-abbr" aria-hidden="true">
+              {role.abbr}
+            </span>
+            <span className="sistema-hub-tile-copy">
+              <span className="sistema-hub-label">{role.title}</span>
+              <span className="sistema-hub-open">Abrir</span>
+            </span>
           </Link>
         ))}
       </div>
 
-      <p className="text-brand-muted text-xs mt-8 sm:mt-10 text-center max-w-md px-4 leading-relaxed">
-        Instala esta app no ecrã inicial para abrir sempre aqui (Android:
-        Instalar · iPhone: Partilhar → Adicionar ao Ecrã Principal). PIN válido
-        até às 04:00.
-      </p>
+      <footer className="sistema-hub-footer">
+        <Link
+          href="/"
+          className="sistema-hub-footer-link"
+          onClick={() => {
+            void exitStaffFullscreen();
+          }}
+        >
+          Site
+        </Link>
+        <span className="sistema-hub-footer-sep" aria-hidden="true">
+          ·
+        </span>
+        <span>PIN até 04:00</span>
+      </footer>
     </main>
   );
 }
@@ -152,7 +145,7 @@ function SistemaGate() {
     return (
       <PinScreen
         title="Acesso Staff"
-        subtitle="PIN válido até ao fim do serviço (04:00)"
+        subtitle="PIN até 04:00"
         dest={next ?? "/sistema"}
         onSuccess={next ? undefined : checkSession}
       />

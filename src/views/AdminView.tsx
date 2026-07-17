@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { AdminAuditLog } from "@/components/admin/AdminAuditLog";
 import { AdminHistory } from "@/components/admin/AdminHistory";
 import { AdminLayout, type AdminSection } from "@/components/admin/AdminLayout";
-import { AdminLiveBar } from "@/components/admin/AdminLiveBar";
 import { AdminLoyalty } from "@/components/admin/AdminLoyalty";
 import { AdminReports } from "@/components/admin/AdminReports";
 import { AdminTableMap } from "@/components/admin/AdminTableMap";
@@ -18,6 +17,7 @@ import {
   fetchAdminHistory,
   updateCatalogItem,
 } from "@/lib/api";
+import { FEATURE_LOYALTY } from "@/lib/feature-flags";
 import { CATEGORY_SHORT } from "@/lib/menu";
 import { toDateParam } from "@/lib/period";
 import type {
@@ -35,8 +35,8 @@ const SECTION_META: Record<
   { title: string; subtitle: string }
 > = {
   relatorios: {
-    title: "Relatórios",
-    subtitle: "Faturação, caixa, comparações e tendências",
+    title: "Dashboard",
+    subtitle: "O que importa para gerir o serviço",
   },
   operacoes: {
     title: "Operações",
@@ -440,6 +440,12 @@ export default function AdminView() {
     void loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (!FEATURE_LOYALTY && section === "fidelizacao") {
+      setSection("relatorios");
+    }
+  }, [section]);
+
   const meta = SECTION_META[section];
   const showPeriod = section === "relatorios" || section === "historico";
   const showLive =
@@ -474,10 +480,11 @@ export default function AdminView() {
       ) : section === "operacoes" ? (
         <AdminTableMap />
       ) : section === "relatorios" && kpis ? (
-        <>
-          {showLive && <AdminLiveBar />}
-          <AdminReports kpis={kpis} anchorDate={anchorDate} />
-        </>
+        <AdminReports
+          kpis={kpis}
+          anchorDate={anchorDate}
+          showLive={showLive}
+        />
       ) : section === "historico" ? (
         <AdminHistory
           history={history}

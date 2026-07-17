@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { enterStaffFullscreen } from "@/lib/staff-fullscreen";
 
 interface PinScreenProps {
   title?: string;
@@ -69,6 +70,7 @@ export function PinScreen({
       if (current.length >= 4) return current;
       const next = current + digit;
       if (next.length === 4) {
+        void enterStaffFullscreen();
         void submitPin(next);
       }
       return next;

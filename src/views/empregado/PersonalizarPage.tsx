@@ -128,6 +128,7 @@ export function PersonalizarPage({
         onBack={onBack}
         backLabel={mode === "edit" ? "Pedido" : "Menu"}
         compact={nested}
+        showLogout={!nested}
       />
 
       <ScreenBody>
@@ -217,11 +218,15 @@ export function PersonalizarPage({
 
           <section>
             <h2 className="text-sm font-bold text-brand-gold mb-2">
-              Nota para a cozinha
+              {item.skipKitchen ? "Nota para o bar" : "Nota para a cozinha"}
             </h2>
             <input
               className="input"
-              placeholder="Opcional — ex: sem cebola"
+              placeholder={
+                item.skipKitchen
+                  ? "Opcional — ex: bem fresca"
+                  : "Opcional — ex: sem cebola"
+              }
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />

@@ -2,9 +2,10 @@
 
 import { useCallback, useState } from "react";
 import { AppHeader, SegmentedControl } from "@/components/AppHeader";
-import { LogoutButton } from "@/components/LogoutButton";
+import { CaixaBebidasPanel } from "@/components/caixa/CaixaBebidasPanel";
 import { ItemStatusBadge, TableStatusBadge } from "@/components/StatusBadge";
 import { fetchCashier, fetchDayClose, fetchRecentPayments, processPayment, voidPayment } from "@/lib/api";
+import { FEATURE_LOYALTY } from "@/lib/feature-flags";
 import { lookupLoyaltyMember } from "@/lib/loyalty-api";
 import {
   suggestedLoyaltyDiscount,
@@ -25,7 +26,7 @@ interface CashierEntry {
   itemCount: number;
 }
 
-type CaixaTab = "pagamentos" | "mesas" | "fecho";
+type CaixaTab = "pagamentos" | "bebidas" | "mesas" | "fecho";
 
 const PAYMENT_METHODS: { id: PaymentMethod; label: string }[] = [
   { id: "dinheiro", label: "Dinheiro" },
@@ -34,11 +35,12 @@ const PAYMENT_METHODS: { id: PaymentMethod; label: string }[] = [
   { id: "misto", label: "Misto" },
 ];
 
-const CAIXA_TABS = [
+const CAIXA_TABS: { id: CaixaTab; label: string }[] = [
   { id: "pagamentos", label: "Pagamentos" },
+  { id: "bebidas", label: "Bebidas" },
   { id: "mesas", label: "Mesas" },
   { id: "fecho", label: "Fecho" },
-] as const;
+];
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   dinheiro: "Dinheiro",
@@ -213,67 +215,69 @@ function PaymentPanel({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
-        <div className="rounded-xl border border-brand-line bg-brand-dark/20 p-3 space-y-2">
-          <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest">
-            App 56
-          </p>
-          <div className="flex gap-2">
-            <input
-              className="input !min-h-[40px] !py-2 text-sm flex-1"
-              placeholder="Código / QR do cliente"
-              value={loyaltyCode}
-              onChange={(e) => onLoyaltyCodeChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onLoyaltyLookup();
-              }}
-            />
-            <button
-              type="button"
-              onClick={onLoyaltyLookup}
-              disabled={loyaltyLookingUp || !loyaltyCode.trim()}
-              className="btn-secondary !min-h-[40px] !px-3 text-xs shrink-0"
-            >
-              {loyaltyLookingUp ? "…" : "Ler"}
-            </button>
-          </div>
-
-          {loyaltyMember && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-brand-gold truncate">
-                  {loyaltyMember.name}
-                </p>
-                <button
-                  type="button"
-                  onClick={onClearLoyalty}
-                  className="text-[10px] font-bold text-brand-muted uppercase"
-                >
-                  Limpar
-                </button>
-              </div>
-              {loyaltyDiscount > 0 && loyaltyLabel ? (
-                <p className="text-xs font-semibold text-emerald-700">
-                  {loyaltyLabel} (−{formatPrice(loyaltyDiscount)})
-                </p>
-              ) : loyaltyRewards.length === 0 ? (
-                <p className="text-xs text-brand-muted">Sem recompensas disponíveis</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {loyaltyRewards.map((reward) => (
-                    <button
-                      key={reward.id}
-                      type="button"
-                      onClick={() => onApplyReward(reward)}
-                      className="w-full text-left rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-xs font-semibold text-emerald-900"
-                    >
-                      Aplicar: {reward.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+        {FEATURE_LOYALTY ? (
+          <div className="rounded-xl border border-brand-line bg-brand-dark/20 p-3 space-y-2">
+            <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest">
+              App 56
+            </p>
+            <div className="flex gap-2">
+              <input
+                className="input !min-h-[40px] !py-2 text-sm flex-1"
+                placeholder="Código / QR do cliente"
+                value={loyaltyCode}
+                onChange={(e) => onLoyaltyCodeChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onLoyaltyLookup();
+                }}
+              />
+              <button
+                type="button"
+                onClick={onLoyaltyLookup}
+                disabled={loyaltyLookingUp || !loyaltyCode.trim()}
+                className="btn-secondary !min-h-[40px] !px-3 text-xs shrink-0"
+              >
+                {loyaltyLookingUp ? "…" : "Ler"}
+              </button>
             </div>
-          )}
-        </div>
+
+            {loyaltyMember && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-brand-gold truncate">
+                    {loyaltyMember.name}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onClearLoyalty}
+                    className="text-[10px] font-bold text-brand-muted uppercase"
+                  >
+                    Limpar
+                  </button>
+                </div>
+                {loyaltyDiscount > 0 && loyaltyLabel ? (
+                  <p className="text-xs font-semibold text-emerald-700">
+                    {loyaltyLabel} (−{formatPrice(loyaltyDiscount)})
+                  </p>
+                ) : loyaltyRewards.length === 0 ? (
+                  <p className="text-xs text-brand-muted">Sem recompensas disponíveis</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {loyaltyRewards.map((reward) => (
+                      <button
+                        key={reward.id}
+                        type="button"
+                        onClick={() => onApplyReward(reward)}
+                        className="w-full text-left rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-xs font-semibold text-emerald-900"
+                      >
+                        Aplicar: {reward.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
 
         <label className="block">
           <span className="text-xs font-bold text-brand-muted uppercase tracking-wide">
@@ -963,12 +967,7 @@ export default function CaixaView() {
   if (tab === "fecho") {
     return (
       <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
-        <AppHeader
-          title="Caixa"
-          subtitle="Fecho do dia"
-          backHref="/sistema"
-          actions={<LogoutButton />}
-        />
+        <AppHeader title="Caixa" subtitle="Fecho do dia" />
         <CaixaTabBar active={tab} onChange={setTab} />
         {dayClose ? (
           <DayClosePanel
@@ -985,15 +984,20 @@ export default function CaixaView() {
     );
   }
 
+  if (tab === "bebidas") {
+    return (
+      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
+        <AppHeader title="Caixa" subtitle="Bebidas · bar" />
+        <CaixaTabBar active={tab} onChange={setTab} />
+        <CaixaBebidasPanel />
+      </div>
+    );
+  }
+
   if (tab === "mesas") {
     return (
       <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
-        <AppHeader
-          title="Caixa"
-          subtitle="Gestão de mesas"
-          backHref="/sistema"
-          actions={<LogoutButton />}
-        />
+        <AppHeader title="Caixa" subtitle="Gestão de mesas" />
         <CaixaTabBar active={tab} onChange={setTab} />
         <div className="flex-1 min-h-0 overflow-hidden">
           <WaiterTableFlow
@@ -1014,9 +1018,7 @@ export default function CaixaView() {
         title="Caixa"
         subtitle={`${activeTables.length} mesa${activeTables.length !== 1 ? "s" : ""} ativa${activeTables.length !== 1 ? "s" : ""}`}
         onBack={showMobileDetail ? () => setSelected(null) : undefined}
-        backHref="/sistema"
-        backLabel={showMobileDetail ? "Pagamentos" : undefined}
-        actions={<LogoutButton />}
+        backLabel="Pagamentos"
       />
 
       <CaixaTabBar active={tab} onChange={setTab} />

@@ -5,9 +5,9 @@ import { PageLoader } from "@/components/PageLoader";
 
 const AdminView = dynamic(() => import("@/views/AdminView"), {
   ssr: false,
-  loading: () => <PageLoader title="Admin" />,
+  loading: () => <PageLoader title="Gestor56" />,
 });
 
-export default function AdminPage() {
+export default function Gestor56Page() {
   return <AdminView />;
 }

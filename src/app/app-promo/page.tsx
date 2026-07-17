@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import AppPromoView from "@/views/AppPromoView";
+import { FEATURE_LOYALTY } from "@/lib/feature-flags";
 
 export const metadata = {
   title: "App 56 — Cinquenta & Seis",
@@ -7,5 +9,6 @@ export const metadata = {
 };
 
 export default function AppPromoPage() {
+  if (!FEATURE_LOYALTY) redirect("/");
   return <AppPromoView />;
 }

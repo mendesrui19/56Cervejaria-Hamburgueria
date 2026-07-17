@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppHeader, SegmentedControl } from "@/components/AppHeader";
-import { LogoutButton } from "@/components/LogoutButton";
 import { ItemStatusBadge } from "@/components/StatusBadge";
 import { dismissKitchenAlert, fetchKitchen, updateItemStatus } from "@/lib/api";
 import { getKitchenZoneLabel } from "@/lib/kitchen-zones";
@@ -403,7 +402,6 @@ export default function CozinhaView() {
       <AppHeader
         title="Cozinha"
         subtitle={`${activeCount} a preparar · ${readyCount} prontos`}
-        actions={<LogoutButton />}
       />
 
       <div className="px-3 sm:px-4 py-2 border-b border-brand-gold/10 shrink-0">
