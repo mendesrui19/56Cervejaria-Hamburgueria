@@ -35,6 +35,7 @@ import {
   setKitchenAlert,
   setKitchenAlertForItem,
 } from "./kitchen-alerts";
+import { setBarAlert, setBarAlertForItem } from "./bar-alerts";
 import type {
   AddOrderItemPayload,
   CreateOrderPayload,
@@ -312,6 +313,8 @@ export async function saveState(state: RestaurantState): Promise<void> {
           : String(order.paymentCard),
       kitchenAlert: order.kitchenAlert ?? null,
       kitchenAlertAt: order.kitchenAlertAt ?? null,
+      barAlert: order.barAlert ?? null,
+      barAlertAt: order.barAlertAt ?? null,
     });
 
     for (const item of order.items) {
@@ -533,8 +536,7 @@ export async function addItemToOrder(
         item.notes === payload.notes &&
         customizationsKey(item.customizations) ===
           customizationsKey(payload.customizations) &&
-        (item.status === "pendente" ||
-          (item.skipKitchen && item.status === "em_preparacao"))
+        item.status === "pendente"
     );
 
     if (existingLine) {
@@ -562,9 +564,9 @@ export async function addItemToOrder(
     notes: payload.notes,
     ingredients,
     kitchenNotes: isDrink ? undefined : menuItem.kitchenNotes,
-    // Bebidas vão logo para a fila da caixa (bar)
-    status: isDrink ? "em_preparacao" : "pendente",
-    sentToKitchenAt: isDrink ? nowIso : undefined,
+    // Comida e bebidas ficam pendentes até o empregado enviar
+    status: "pendente",
+    sentToKitchenAt: undefined,
     isAddon: menuItem.isAddon ?? false,
     skipKitchen: isDrink,
     parentItemId: payload.parentItemId,
@@ -615,12 +617,18 @@ export async function sendItemsToKitchen(
       item.status !== "cancelado" &&
       item.status !== "pendente"
   );
+  const hadBarActivity = order.items.some(
+    (item) =>
+      !item.isAddon &&
+      item.skipKitchen &&
+      item.status !== "cancelado" &&
+      item.status !== "pendente"
+  );
 
   const newlySent: OrderItem[] = [];
 
   for (const item of order.items) {
     if (item.status !== "pendente") continue;
-    if (item.skipKitchen) continue;
     if (itemIds && !itemIds.includes(item.id)) continue;
 
     item.ingredients = await resolveKitchenChoices(item);
@@ -637,18 +645,21 @@ export async function sendItemsToKitchen(
     .where(eq(orders.id, order.id));
   await touchRestaurantUpdated(now);
 
-  if (hadKitchenActivity && newlySent.length > 0) {
-    if (newlySent.length === 1) {
+  const newlySentFood = newlySent.filter((item) => !item.skipKitchen);
+  const newlySentDrinks = newlySent.filter((item) => item.skipKitchen);
+
+  if (hadKitchenActivity && newlySentFood.length > 0) {
+    if (newlySentFood.length === 1) {
       await setKitchenAlertForItem(
         order.id,
         tableNumber,
-        newlySent[0]!,
+        newlySentFood[0]!,
         "NOVO",
         categoryByMenuId
       );
     } else {
       const byZone = new Map<KitchenZone, string[]>();
-      for (const item of newlySent) {
+      for (const item of newlySentFood) {
         const zone = await resolveItemKitchenZone(
           item.menuItemId,
           categoryByMenuId
@@ -667,6 +678,25 @@ export async function sendItemsToKitchen(
       await setKitchenAlert(
         order.id,
         `Mesa ${tableNumber}: NOVO — ${parts.join(" · ")}`
+      );
+    }
+  }
+
+  if (hadBarActivity && newlySentDrinks.length > 0) {
+    if (newlySentDrinks.length === 1) {
+      await setBarAlertForItem(
+        order.id,
+        tableNumber,
+        newlySentDrinks[0]!,
+        "NOVO"
+      );
+    } else {
+      const labels = newlySentDrinks.map((item) =>
+        formatKitchenItemLabel(item.quantity, item.name)
+      );
+      await setBarAlert(
+        order.id,
+        `Mesa ${tableNumber}: BAR NOVO — ${labels.join(", ")}`
       );
     }
   }
@@ -727,22 +757,7 @@ export async function updateItemStatus(
   const order = await fetchOrderRows(itemRow.orderId);
   if (!order) throw new Error("Pedido não encontrado");
 
-  const kitchenItems = order.items.filter(
-    (item) =>
-      !item.skipKitchen && !item.isAddon && item.status !== "cancelado"
-  );
-
-  const allDeliveredOrReady = kitchenItems.every(
-    (item) => item.status === "entregue" || item.status === "pronto"
-  );
-  const hasReady = kitchenItems.some((item) => item.status === "pronto");
-
-  if (hasReady && allDeliveredOrReady) {
-    await db
-      .update(restaurantTables)
-      .set({ status: "a_pagar" })
-      .where(eq(restaurantTables.number, order.tableNumber));
-  }
+  // Não passar a mesa a «a_pagar» automaticamente — só com Pedir conta.
 
   await touchRestaurantUpdated(now);
 
@@ -761,7 +776,9 @@ export async function removeOrderItem(
   const item = order.items.find((entry) => entry.id === itemId);
   if (!item) throw new Error("Item não encontrado");
   if (item.status !== "pendente") {
-    throw new Error("Só é possível remover itens ainda não enviados à cozinha");
+    throw new Error(
+      "Só é possível remover itens ainda não enviados (cozinha/bar)"
+    );
   }
 
   const db = getDb();
@@ -965,19 +982,23 @@ export async function clearTable(
   const now = new Date().toISOString();
 
   for (const item of activeItems) {
-    if (item.status === "pendente" || item.skipKitchen) {
+    if (item.status === "pendente") {
       await db.delete(orderItems).where(eq(orderItems.id, item.id));
       continue;
     }
 
-    // em_preparacao → cancelar com alerta
+    // Já enviados: cancelar (comida gera alerta na cozinha)
     await db
       .update(orderItems)
       .set({ status: "cancelado" })
       .where(eq(orderItems.id, item.id));
 
-    if (!item.skipKitchen && !item.isAddon) {
-      await setKitchenAlertForItem(order.id, tableNumber, item, "CANCELAR");
+    if (!item.isAddon) {
+      if (item.skipKitchen) {
+        await setBarAlertForItem(order.id, tableNumber, item, "CANCELAR");
+      } else {
+        await setKitchenAlertForItem(order.id, tableNumber, item, "CANCELAR");
+      }
     }
   }
 
@@ -993,6 +1014,8 @@ export async function clearTable(
       updatedAt: now,
       kitchenAlert: null,
       kitchenAlertAt: null,
+      barAlert: null,
+      barAlertAt: null,
     })
     .where(eq(orders.id, order.id));
 
@@ -1089,13 +1112,8 @@ export async function processPayment(
 
   if (!paidOrder) throw new Error("Este pedido já foi pago");
 
-  for (const item of order.items) {
-    if (item.status === "cancelado" || item.status === "entregue") continue;
-    await db
-      .update(orderItems)
-      .set({ status: "entregue" })
-      .where(eq(orderItems.id, item.id));
-  }
+  // Não alterar estados dos itens — ficam como estavam (pendente/preparar/pronto…).
+  // Assim, se anular o pagamento, o pedido reabre com a verdade do serviço.
 
   const [updatedTable] = await db
     .update(restaurantTables)
@@ -1213,44 +1231,14 @@ export async function voidPayment(orderId: string): Promise<Order> {
     })
     .where(eq(orders.id, order.id));
 
-  for (const item of order.items) {
-    if (item.status === "cancelado") continue;
-
-    const nextStatus = item.skipKitchen
-      ? "em_preparacao"
-      : item.sentToKitchenAt
-      ? "pronto"
-      : "pendente";
-
-    await db
-      .update(orderItems)
-      .set({
-        status: nextStatus,
-        readyAt: nextStatus === "pronto" ? item.readyAt ?? now : null,
-        sentToKitchenAt:
-          item.skipKitchen && !item.sentToKitchenAt
-            ? now
-            : item.sentToKitchenAt ?? null,
-      })
-      .where(eq(orderItems.id, item.id));
-  }
-
-  const refreshed = (await fetchOrderRows(order.id))!;
-  const kitchenItems = refreshed.items.filter(
-    (item) =>
-      !item.skipKitchen && !item.isAddon && item.status !== "cancelado"
-  );
-  const hasReady = kitchenItems.some((item) => item.status === "pronto");
-  const allReady = kitchenItems.every(
-    (item) => item.status === "pronto" || item.status === "entregue"
-  );
-
+  // Itens mantêm o estado real (não se inventa pronto/bar).
+  // Mesa volta a a_pagar — tinham ido cobrar.
   await db
     .update(restaurantTables)
     .set({
-      status: hasReady && allReady ? "a_pagar" : "ocupada",
+      status: "a_pagar",
       orderId: order.id,
-      openedAt: table.openedAt ?? now,
+      openedAt: table.openedAt ?? order.createdAt ?? now,
     })
     .where(eq(restaurantTables.number, order.tableNumber));
 
@@ -1392,6 +1380,8 @@ export async function getBarOrders(): Promise<
     waiterName: string;
     items: KitchenTicketItem[];
     createdAt: string;
+    barAlert?: string;
+    barAlertAt?: string;
   }>
 > {
   const db = getDb();
@@ -1407,6 +1397,8 @@ export async function getBarOrders(): Promise<
     waiterName: string;
     items: KitchenTicketItem[];
     createdAt: string;
+    barAlert?: string;
+    barAlertAt?: string;
   }> = [];
 
   for (const orderRow of activeOrders) {
@@ -1417,14 +1409,10 @@ export async function getBarOrders(): Promise<
       (item) =>
         item.skipKitchen &&
         !item.isAddon &&
-        item.status !== "cancelado" &&
-        item.status !== "entregue" &&
-        (item.status === "em_preparacao" ||
-          item.status === "pronto" ||
-          item.status === "pendente")
+        (item.status === "em_preparacao" || item.status === "pronto")
     );
 
-    if (visibleItems.length === 0) continue;
+    if (visibleItems.length === 0 && !order.barAlert) continue;
 
     const items = await Promise.all(
       visibleItems.map(async (item) => {
@@ -1452,14 +1440,19 @@ export async function getBarOrders(): Promise<
       waiterName: order.waiterName,
       items,
       createdAt: order.createdAt,
+      barAlert: order.barAlert,
+      barAlertAt: order.barAlertAt,
     });
   }
 
-  return results.sort(
-    (a, b) =>
+  return results.sort((a, b) => {
+    if (a.barAlert && !b.barAlert) return -1;
+    if (!a.barAlert && b.barAlert) return 1;
+    return (
       new Date(a.items[0]?.sentToKitchenAt ?? a.createdAt).getTime() -
       new Date(b.items[0]?.sentToKitchenAt ?? b.createdAt).getTime()
-  );
+    );
+  });
 }
 
 export async function getCashierTables(): Promise<
@@ -1526,7 +1519,11 @@ export async function cancelOrderItem(
     throw new Error("Não é possível cancelar item já entregue");
   }
   if (item.status === "pronto") {
-    throw new Error("Não é possível cancelar — o prato já está pronto na cozinha");
+    throw new Error(
+      item.skipKitchen
+        ? "Não é possível cancelar — a bebida já está pronta no bar"
+        : "Não é possível cancelar — o prato já está pronto na cozinha"
+    );
   }
 
   const db = getDb();
@@ -1542,12 +1539,12 @@ export async function cancelOrderItem(
     .set({ updatedAt: now })
     .where(eq(orders.id, order.id));
 
-  if (
-    canModifyAfterKitchen(item) &&
-    !item.skipKitchen &&
-    !item.isAddon
-  ) {
-    await setKitchenAlertForItem(order.id, tableNumber, item, "CANCELAR");
+  if (canModifyAfterKitchen(item) && !item.isAddon) {
+    if (item.skipKitchen) {
+      await setBarAlertForItem(order.id, tableNumber, item, "CANCELAR");
+    } else {
+      await setKitchenAlertForItem(order.id, tableNumber, item, "CANCELAR");
+    }
   }
 
   await recordAuditLog({
@@ -1578,7 +1575,11 @@ export async function updateOrderItemInOrder(
     throw new Error("Não é possível alterar item já entregue");
   }
   if (item.status === "pronto") {
-    throw new Error("Não é possível alterar — o prato já está pronto na cozinha");
+    throw new Error(
+      item.skipKitchen
+        ? "Não é possível alterar — a bebida já está pronta no bar"
+        : "Não é possível alterar — o prato já está pronto na cozinha"
+    );
   }
 
   const menuItem = await getCatalogItem(item.menuItemId);
@@ -1600,7 +1601,9 @@ export async function updateOrderItemInOrder(
     nextQuantity !== item.quantity
   ) {
     throw new Error(
-      "Não é possível alterar quantidade — prato já na cozinha"
+      item.skipKitchen
+        ? "Não é possível alterar quantidade — bebida já no bar"
+        : "Não é possível alterar quantidade — prato já na cozinha"
     );
   }
 
@@ -1629,9 +1632,12 @@ export async function updateOrderItemInOrder(
   item.customizations = nextCustomizations;
   item.notes = nextNotes;
   item.price = calculateItemPrice(menuItem, nextCustomizations, resolveItem);
+  const nextIngredients = buildKitchenChoices(menuItem, nextCustomizations);
   item.ingredients = menuItem.skipKitchen
-    ? []
-    : buildKitchenChoices(menuItem, nextCustomizations);
+    ? nextIngredients.filter(
+        (line) => !/^como servir:\s*só a bebida$/i.test(line)
+      )
+    : nextIngredients;
 
   await updateOrderItemRecord(item);
 
@@ -1642,8 +1648,12 @@ export async function updateOrderItemInOrder(
     .set({ updatedAt: now })
     .where(eq(orders.id, order.id));
 
-  if (canModifyAfterKitchen(item) && !item.skipKitchen) {
-    await setKitchenAlertForItem(order.id, tableNumber, item, "ALTERACAO");
+  if (canModifyAfterKitchen(item)) {
+    if (item.skipKitchen) {
+      await setBarAlertForItem(order.id, tableNumber, item, "ALTERACAO");
+    } else {
+      await setKitchenAlertForItem(order.id, tableNumber, item, "ALTERACAO");
+    }
   }
 
   await touchRestaurantUpdated(now);

@@ -72,6 +72,14 @@ async function ensureSchema() {
   `;
 
   await sql`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS bar_alert text
+  `;
+
+  await sql`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS bar_alert_at timestamptz
+  `;
+
+  await sql`
     CREATE INDEX IF NOT EXISTS orders_paid_at_idx ON orders (paid_at)
   `;
 

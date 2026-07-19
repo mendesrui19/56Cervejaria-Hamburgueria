@@ -192,6 +192,17 @@ export async function dismissKitchenAlert(orderId: string) {
   return res.json();
 }
 
+export async function dismissBarAlert(orderId: string) {
+  const res = await apiFetch(`/api/bar/orders/${orderId}/alert`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao limpar alerta do bar");
+  }
+  return res.json();
+}
+
 export async function sendToKitchen(tableNumber: number, itemIds?: string[]) {
   const res = await apiFetch(`/api/orders/${tableNumber}/send`, {
     method: "POST",

@@ -51,6 +51,11 @@ export const orders = pgTable(
       withTimezone: true,
       mode: "string",
     }),
+    barAlert: text("bar_alert"),
+    barAlertAt: timestamp("bar_alert_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
     paymentCash: numeric("payment_cash", { precision: 10, scale: 2 }),
     paymentCard: numeric("payment_card", { precision: 10, scale: 2 }),
   },

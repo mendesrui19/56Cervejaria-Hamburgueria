@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppHeader, SegmentedControl } from "@/components/AppHeader";
 import { CaixaBebidasPanel } from "@/components/caixa/CaixaBebidasPanel";
 import { ItemStatusBadge, TableStatusBadge } from "@/components/StatusBadge";
@@ -18,6 +18,36 @@ import type { DayCloseSummary, Order, OrderItem, PaymentMethod, RecentPaymentEnt
 import { usePolling } from "@/hooks/usePolling";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { WaiterTableFlow } from "@/views/shared/WaiterTableFlow";
+
+const CAIXA_DUAL_KEY = "caixa-dual-panel";
+
+function DualPanelToggle({
+  active,
+  onToggle,
+}: {
+  active: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`rounded-lg border font-semibold touch-manipulation text-[10px] px-2 py-1.5 uppercase tracking-wide ${
+        active
+          ? "border-brand-gold bg-amber-50 text-brand-gold"
+          : "border-brand-line text-brand-muted hover:text-brand-gold"
+      }`}
+      aria-pressed={active}
+      title={
+        active
+          ? "Voltar a um ecrã"
+          : "Dividir ecrã: pagamentos + bebidas"
+      }
+    >
+      {active ? "1 ecrã" : "Dividir"}
+    </button>
+  );
+}
 
 interface CashierEntry {
   table: Table;
@@ -87,13 +117,14 @@ function TableListButton({
 
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`w-full text-left transition-all touch-manipulation rounded-xl border px-3 py-2.5 ${
         selected
           ? "border-brand-gold bg-amber-50 shadow-sm"
           : waitingBill
-          ? "border-orange-400 bg-orange-50 shadow-sm ring-1 ring-orange-200"
-          : "border-brand-line bg-white active:bg-brand-dark"
+            ? "border-orange-400 bg-orange-50 shadow-sm ring-1 ring-orange-200"
+            : "border-brand-line bg-white active:bg-brand-dark"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -365,7 +396,7 @@ function CaixaTabBar({
   onChange: (tab: CaixaTab) => void;
 }) {
   return (
-    <div className="border-b border-brand-line bg-white/95 backdrop-blur-md px-3 py-1.5 shrink-0">
+    <div className="staff-station-filters shrink-0">
       <SegmentedControl
         options={CAIXA_TABS.map((tab) => ({ id: tab.id, label: tab.label }))}
         active={active}
@@ -726,10 +757,32 @@ function RecentPaymentsList({
 export default function CaixaView() {
   const isSplit = useMediaQuery(CAIXA_SPLIT);
   const [tab, setTab] = useState<CaixaTab>("pagamentos");
+  const [dualPanel, setDualPanel] = useState(false);
   const { data: entries, refresh } = usePolling<CashierEntry[]>(
     fetchCashier,
     3000
   );
+
+  useEffect(() => {
+    try {
+      setDualPanel(localStorage.getItem(CAIXA_DUAL_KEY) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleDualPanel = useCallback(() => {
+    setDualPanel((current) => {
+      const next = !current;
+      try {
+        localStorage.setItem(CAIXA_DUAL_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      if (next) setTab("pagamentos");
+      return next;
+    });
+  }, []);
   const { data: recentPayments, refresh: refreshRecent } = usePolling<
     RecentPaymentEntry[]
   >(fetchRecentPayments, 5000);
@@ -984,16 +1037,6 @@ export default function CaixaView() {
     );
   }
 
-  if (tab === "bebidas") {
-    return (
-      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
-        <AppHeader title="Caixa" subtitle="Bebidas · bar" />
-        <CaixaTabBar active={tab} onChange={setTab} />
-        <CaixaBebidasPanel />
-      </div>
-    );
-  }
-
   if (tab === "mesas") {
     return (
       <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
@@ -1010,7 +1053,163 @@ export default function CaixaView() {
     );
   }
 
-  const showMobileDetail = !isSplit && selected !== null;
+  const showMobileDetail = !isSplit && selected !== null && !dualPanel;
+  const dualToggle = (
+    <DualPanelToggle active={dualPanel} onToggle={toggleDualPanel} />
+  );
+
+  const billProps = selected
+    ? {
+        entry: selected,
+        tip,
+        paymentMethod,
+        paymentCash,
+        paymentCard,
+        loading,
+        loyaltyDiscount,
+        loyaltyLabel,
+        loyaltyCode,
+        loyaltyLookingUp,
+        loyaltyMember,
+        loyaltyRewards,
+        onTipChange: handleTipChange,
+        onMethodChange: handleMethodChange,
+        onCashChange: handleCashChange,
+        onCardChange: handleCardChange,
+        onLoyaltyCodeChange: setLoyaltyCode,
+        onLoyaltyLookup: () => void handleLoyaltyLookup(),
+        onApplyReward: handleApplyReward,
+        onClearLoyalty: clearLoyalty,
+        onPay: handlePay,
+      }
+    : null;
+
+  const paymentsBody = (
+    <div className="flex flex-1 min-h-0 overflow-hidden w-full">
+      {isSplit || dualPanel ? (
+        <>
+          <aside
+            className={`${
+              dualPanel ? "w-36 lg:w-40" : "w-44 lg:w-52 xl:w-56"
+            } border-r border-brand-line overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1.5 flex-shrink-0 bg-white`}
+          >
+            {activeTables.length > 0 ? (
+              activeTables.map((entry) => (
+                <TableListButton
+                  key={entry.table.number}
+                  entry={entry}
+                  selected={selected?.table.number === entry.table.number}
+                  onClick={() => handleSelectTable(entry)}
+                />
+              ))
+            ) : (
+              <p className="text-brand-muted text-xs text-center py-8 px-2">
+                Sem mesas ativas
+              </p>
+            )}
+            {!dualPanel && (
+              <RecentPaymentsList
+                payments={recentPayments ?? []}
+                voidingId={voidingId}
+                onVoid={handleVoid}
+              />
+            )}
+          </aside>
+          <main className="flex-1 min-h-0 overflow-hidden bg-brand-dark/20">
+            {!selected || !billProps ? (
+              <div className="flex flex-col items-center justify-center h-full text-brand-muted gap-2 px-3">
+                <p className="text-sm font-semibold uppercase tracking-widest">
+                  Caixa
+                </p>
+                <p className="text-base text-center">Selecione uma mesa</p>
+              </div>
+            ) : (
+              <BillPanel {...billProps} isSplit={isSplit || dualPanel} />
+            )}
+          </main>
+        </>
+      ) : showMobileDetail && selected && billProps ? (
+        <main className="flex-1 min-h-0 overflow-hidden w-full">
+          <BillPanel
+            {...billProps}
+            isSplit={false}
+            onBack={() => {
+              setSelected(null);
+              clearLoyalty();
+            }}
+          />
+        </main>
+      ) : (
+        <aside className="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 flex flex-col gap-2 w-full">
+          {activeTables.length > 0 ? (
+            activeTables.map((entry) => (
+              <TableListButton
+                key={entry.table.number}
+                entry={entry}
+                selected={false}
+                onClick={() => handleSelectTable(entry)}
+              />
+            ))
+          ) : (
+            <p className="text-brand-muted text-sm text-center py-12">
+              Sem mesas ativas
+            </p>
+          )}
+          <RecentPaymentsList
+            payments={recentPayments ?? []}
+            voidingId={voidingId}
+            onVoid={handleVoid}
+          />
+        </aside>
+      )}
+    </div>
+  );
+
+  if (dualPanel) {
+    return (
+      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
+        <AppHeader
+          title="Caixa"
+          subtitle="Pagamentos + Bebidas"
+          actions={dualToggle}
+        />
+        <CaixaTabBar active={tab} onChange={setTab} />
+        {success && (
+          <div className="mx-3 mt-1.5 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-green-800 text-sm font-semibold shrink-0">
+            {success}
+          </div>
+        )}
+        <div className="flex flex-1 min-h-0 flex-col xl:flex-row overflow-hidden">
+          <section className="flex-[1.15] min-h-0 min-w-0 flex flex-col border-b xl:border-b-0 xl:border-r border-brand-line">
+            <p className="shrink-0 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-brand-muted bg-white border-b border-brand-line">
+              Pagamentos
+            </p>
+            {paymentsBody}
+          </section>
+          <section className="flex-1 min-h-0 min-w-0 flex flex-col">
+            <p className="shrink-0 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-brand-muted bg-white border-b border-brand-line">
+              Bebidas · bar
+            </p>
+            <CaixaBebidasPanel />
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  if (tab === "bebidas") {
+    return (
+      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
+        <AppHeader
+          title="Caixa"
+          subtitle="Bebidas · bar"
+          actions={dualToggle}
+        />
+        <CaixaTabBar active={tab} onChange={setTab} />
+        <CaixaBebidasPanel />
+      </div>
+    );
+  }
 
   return (
     <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
@@ -1019,6 +1218,7 @@ export default function CaixaView() {
         subtitle={`${activeTables.length} mesa${activeTables.length !== 1 ? "s" : ""} ativa${activeTables.length !== 1 ? "s" : ""}`}
         onBack={showMobileDetail ? () => setSelected(null) : undefined}
         backLabel="Pagamentos"
+        actions={dualToggle}
       />
 
       <CaixaTabBar active={tab} onChange={setTab} />
@@ -1029,121 +1229,7 @@ export default function CaixaView() {
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0 overflow-hidden w-full">
-        {isSplit ? (
-          <>
-            <aside className="w-44 lg:w-52 xl:w-56 border-r border-brand-line overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1.5 flex-shrink-0 bg-white">
-              {activeTables.length > 0 ? (
-                activeTables.map((entry) => (
-                  <TableListButton
-                    key={entry.table.number}
-                    entry={entry}
-                    selected={selected?.table.number === entry.table.number}
-                    onClick={() => handleSelectTable(entry)}
-                  />
-                ))
-              ) : (
-                <p className="text-brand-muted text-xs text-center py-8 px-2">
-                  Sem mesas ativas
-                </p>
-              )}
-              <RecentPaymentsList
-                payments={recentPayments ?? []}
-                voidingId={voidingId}
-                onVoid={handleVoid}
-              />
-            </aside>
-            <main className="flex-1 min-h-0 overflow-hidden bg-brand-dark/20">
-              {!selected ? (
-                <div className="flex flex-col items-center justify-center h-full text-brand-muted gap-2">
-                  <p className="text-sm font-semibold uppercase tracking-widest">
-                    Caixa
-                  </p>
-                  <p className="text-base">Selecione uma mesa</p>
-                </div>
-              ) : (
-                <BillPanel
-                  entry={selected}
-                  tip={tip}
-                  paymentMethod={paymentMethod}
-                  paymentCash={paymentCash}
-                  paymentCard={paymentCard}
-                  loading={loading}
-                  isSplit
-                  loyaltyDiscount={loyaltyDiscount}
-                  loyaltyLabel={loyaltyLabel}
-                  loyaltyCode={loyaltyCode}
-                  loyaltyLookingUp={loyaltyLookingUp}
-                  loyaltyMember={loyaltyMember}
-                  loyaltyRewards={loyaltyRewards}
-                  onTipChange={handleTipChange}
-                  onMethodChange={handleMethodChange}
-                  onCashChange={handleCashChange}
-                  onCardChange={handleCardChange}
-                  onLoyaltyCodeChange={setLoyaltyCode}
-                  onLoyaltyLookup={() => void handleLoyaltyLookup()}
-                  onApplyReward={handleApplyReward}
-                  onClearLoyalty={clearLoyalty}
-                  onPay={handlePay}
-                />
-              )}
-            </main>
-          </>
-        ) : showMobileDetail && selected ? (
-          <main className="flex-1 min-h-0 overflow-hidden w-full">
-            <BillPanel
-              entry={selected}
-              tip={tip}
-              paymentMethod={paymentMethod}
-              paymentCash={paymentCash}
-              paymentCard={paymentCard}
-              loading={loading}
-              isSplit={false}
-              loyaltyDiscount={loyaltyDiscount}
-              loyaltyLabel={loyaltyLabel}
-              loyaltyCode={loyaltyCode}
-              loyaltyLookingUp={loyaltyLookingUp}
-              loyaltyMember={loyaltyMember}
-              loyaltyRewards={loyaltyRewards}
-              onTipChange={handleTipChange}
-              onMethodChange={handleMethodChange}
-              onCashChange={handleCashChange}
-              onCardChange={handleCardChange}
-              onLoyaltyCodeChange={setLoyaltyCode}
-              onLoyaltyLookup={() => void handleLoyaltyLookup()}
-              onApplyReward={handleApplyReward}
-              onClearLoyalty={clearLoyalty}
-              onPay={handlePay}
-              onBack={() => {
-                setSelected(null);
-                clearLoyalty();
-              }}
-            />
-          </main>
-        ) : (
-          <aside className="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 flex flex-col gap-2 w-full">
-            {activeTables.length > 0 ? (
-              activeTables.map((entry) => (
-                <TableListButton
-                  key={entry.table.number}
-                  entry={entry}
-                  selected={false}
-                  onClick={() => handleSelectTable(entry)}
-                />
-              ))
-            ) : (
-              <p className="text-brand-muted text-sm text-center py-12">
-                Sem mesas ativas
-              </p>
-            )}
-            <RecentPaymentsList
-              payments={recentPayments ?? []}
-              voidingId={voidingId}
-              onVoid={handleVoid}
-            />
-          </aside>
-        )}
-      </div>
+      {paymentsBody}
     </div>
   );
 }

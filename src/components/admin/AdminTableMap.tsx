@@ -28,7 +28,7 @@ function tableMeta(
     waiter: order.waiterName,
     total: calculateOrderTotal(order),
     readyCount,
-    hasAlert: Boolean(order.kitchenAlert),
+    hasAlert: Boolean(order.kitchenAlert || order.barAlert),
   };
 }
 

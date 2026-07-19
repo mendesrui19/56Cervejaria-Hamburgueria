@@ -101,6 +101,8 @@ export function mapOrder(
         : toNumber(row.paymentCard),
     kitchenAlert: row.kitchenAlert ?? undefined,
     kitchenAlertAt: row.kitchenAlertAt ?? undefined,
+    barAlert: row.barAlert ?? undefined,
+    barAlertAt: row.barAlertAt ?? undefined,
   };
 }
 

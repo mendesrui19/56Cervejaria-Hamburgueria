@@ -54,28 +54,28 @@ function KitchenItemCard({
 
   return (
     <div
-      className={`rounded-xl p-4 sm:p-5 ${
+      className={`staff-ticket-item ${
         item.status === "pronto"
-          ? "bg-green-50 border-2 border-green-300"
+          ? "is-ready"
           : isEntrada
-            ? "bg-amber-50/80 border-2 border-amber-400"
-            : "bg-white border-2 border-brand-line"
+            ? "is-entrada"
+            : ""
       }`}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           {isEntrada && (
-            <span className="inline-block text-[10px] font-black uppercase tracking-widest text-amber-900 bg-amber-200 rounded-md px-2 py-0.5 mb-1.5">
+            <span className="inline-block text-[10px] font-black uppercase tracking-widest text-amber-900 bg-amber-200 rounded-md px-2 py-0.5 mb-1">
               Entrada
             </span>
           )}
-          <h3 className="text-xl sm:text-2xl font-black text-stone-900 uppercase leading-tight">
+          <h3 className="staff-ticket-item-title">
             {item.quantity > 1 && `${item.quantity}× `}
             {item.name}
           </h3>
           {itemWait && item.status === "em_preparacao" && waitLevel && (
             <span
-              className={`inline-block mt-1 text-sm font-black px-2.5 py-1 rounded-lg border ${WAIT_TIME_BADGE[waitLevel].className}`}
+              className={`inline-block mt-1 text-xs font-black px-2 py-0.5 rounded-md border ${WAIT_TIME_BADGE[waitLevel].className}`}
             >
               {itemWait}
             </span>
@@ -85,22 +85,22 @@ function KitchenItemCard({
       </div>
 
       {item.kitchenNotes && (
-        <div className="rounded-xl bg-indigo-50 border-2 border-indigo-300 px-4 py-3 mb-3">
-          <p className="text-sm text-indigo-900 font-black uppercase tracking-wide">
-            Instrução de preparação
+        <div className="rounded-lg bg-indigo-50 border border-indigo-300 px-3 py-2">
+          <p className="text-[10px] text-indigo-900 font-black uppercase tracking-wide">
+            Preparação
           </p>
-          <p className="text-base sm:text-lg text-indigo-950 font-bold mt-1 leading-snug">
+          <p className="text-sm text-indigo-950 font-bold mt-0.5 leading-snug">
             {item.kitchenNotes}
           </p>
         </div>
       )}
 
       {item.choices.length > 0 && (
-        <div className="mb-3">
-          <p className="text-sm text-brand-muted uppercase tracking-wide mb-2 font-bold">
-            Opções do pedido
+        <div>
+          <p className="text-[10px] text-brand-muted uppercase tracking-wide mb-1 font-bold">
+            Opções
           </p>
-          <ul className="text-lg sm:text-xl space-y-1.5">
+          <ul className="text-sm space-y-1">
             {item.choices.map((choice, idx) => (
               <li
                 key={idx}
@@ -118,11 +118,11 @@ function KitchenItemCard({
       )}
 
       {item.notes && (
-        <div className="rounded-xl bg-red-50 border-2 border-red-300 px-4 py-3 mb-3">
-          <p className="text-sm text-red-800 font-black uppercase tracking-wide">
-            Nota para a cozinha
+        <div className="rounded-lg bg-red-50 border border-red-300 px-3 py-2">
+          <p className="text-[10px] text-red-800 font-black uppercase tracking-wide">
+            Nota
           </p>
-          <p className="text-lg sm:text-xl text-red-900 font-bold mt-1 leading-snug">
+          <p className="text-sm text-red-900 font-bold mt-0.5 leading-snug">
             {item.notes}
           </p>
         </div>
@@ -130,24 +130,26 @@ function KitchenItemCard({
 
       {item.status === "em_preparacao" && (
         <button
+          type="button"
           onClick={() => onStatusChange(item.id, "pronto")}
-          className="btn-primary w-full text-lg sm:text-xl py-4 mt-1 min-h-[56px]"
+          className="btn-primary w-full text-base py-3 min-h-[48px]"
         >
           Pronto
         </button>
       )}
       {item.status === "pronto" && (
-        <div className="flex flex-col gap-2 mt-1">
+        <div className="flex flex-col gap-1.5">
           <button
+            type="button"
             onClick={() => onStatusChange(item.id, "entregue")}
-            className="btn-secondary w-full text-lg py-4 min-h-[56px]"
+            className="btn-secondary w-full text-base py-3 min-h-[48px]"
           >
             Entregue
           </button>
           <button
             type="button"
             onClick={() => onStatusChange(item.id, "em_preparacao")}
-            className="w-full text-sm font-semibold text-brand-muted py-2 min-h-[44px]"
+            className="w-full text-xs font-semibold text-brand-muted py-1.5 min-h-[40px]"
           >
             Corrigir — voltar a preparar
           </button>
@@ -187,66 +189,66 @@ function KitchenTicket({
   const showZoneHeaders = entradas.length > 0 && pratos.length > 0;
 
   return (
-    <div
-      className={`card ticket flex flex-col ${
+    <article
+      className={`staff-ticket ${
         hasAlert
-          ? "border-red-400 pulse-new bg-red-50/40"
+          ? "is-alert pulse-new"
           : isActive
-            ? "border-brand-gold/50 pulse-new"
+            ? "is-active pulse-new"
             : isReady
-              ? "border-green-300 opacity-90"
+              ? "is-ready"
               : ""
       }`}
     >
-      <div className="border-b border-brand-line pb-4 mb-4">
-        <span className="text-4xl sm:text-5xl font-black text-brand-gold block leading-none">
+      <header className="staff-ticket-head">
+        <span className="staff-ticket-mesa">
           {isBalcaoTable(order.tableNumber)
-            ? "BALCÃO"
-            : `MESA ${order.tableNumber}`}
+            ? "Balcão"
+            : `Mesa ${order.tableNumber}`}
         </span>
-        <p className="text-brand-muted text-base sm:text-lg mt-2 font-medium">
-          {order.waiterName}
-          {clockTime && ` · ${clockTime}`}
-          {waitLabel && waitLevel && (
+        <p className="staff-ticket-meta">
+          <span className="truncate">{order.waiterName || "—"}</span>
+          {clockTime ? ` · ${clockTime}` : ""}
+          {waitLabel && waitLevel ? (
             <span
-              className={`font-bold ml-1 px-2 py-0.5 rounded-md border ${WAIT_TIME_BADGE[waitLevel].className}`}
+              className={`inline-block ml-1 px-1.5 py-0.5 rounded border text-[11px] font-bold ${WAIT_TIME_BADGE[waitLevel].className}`}
             >
-              · {waitLabel}
+              {waitLabel}
             </span>
-          )}
+          ) : null}
         </p>
-      </div>
+      </header>
 
       {order.kitchenAlert && (
-        <div className="rounded-xl bg-red-100 border-2 border-red-400 px-4 py-4 mb-4">
-          <p className="text-sm font-black uppercase tracking-wide text-red-900 mb-2">
+        <div className="rounded-lg bg-red-100 border border-red-400 px-3 py-3">
+          <p className="text-[10px] font-black uppercase tracking-wide text-red-900 mb-1">
             Alteração no pedido
           </p>
-          <p className="text-lg font-bold text-red-950 leading-snug">
+          <p className="text-sm font-bold text-red-950 leading-snug">
             {order.kitchenAlert}
           </p>
           <button
             type="button"
             onClick={() => onDismissAlert(order.orderId)}
-            className="btn-secondary w-full mt-4 text-base min-h-[48px]"
+            className="btn-secondary w-full mt-3 text-sm min-h-[44px]"
           >
             Visto — limpar alerta
           </button>
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="staff-ticket-items">
         {items.length === 0 && order.kitchenAlert && (
-          <p className="text-sm text-brand-muted text-center py-2">
-            Sem itens activos — apenas alerta de alteração.
+          <p className="text-sm text-brand-muted text-center py-1">
+            Sem itens activos — apenas alerta.
           </p>
         )}
 
         {showZoneHeaders ? (
           <>
             {entradas.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-xs font-black uppercase tracking-widest text-amber-800 border-b border-amber-200 pb-1">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 border-b border-amber-200 pb-1">
                   {getKitchenZoneLabel("entradas")}
                 </p>
                 {entradas.map((item) => (
@@ -259,8 +261,8 @@ function KitchenTicket({
               </div>
             )}
             {pratos.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-xs font-black uppercase tracking-widest text-brand-muted border-b border-brand-line pb-1">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted border-b border-brand-line pb-1">
                   {getKitchenZoneLabel("pratos")}
                 </p>
                 {pratos.map((item) => (
@@ -283,7 +285,7 @@ function KitchenTicket({
           ))
         )}
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -404,38 +406,40 @@ export default function CozinhaView() {
         subtitle={`${activeCount} a preparar · ${readyCount} prontos`}
       />
 
-      <div className="px-3 sm:px-4 py-2 border-b border-brand-gold/10 shrink-0">
-        <SegmentedControl
-          options={filterOptions}
-          active={filter}
-          onChange={(id) => setFilter(id as StatusFilter)}
-        />
-      </div>
+      <div className="staff-station-body">
+        <div className="staff-station-filters">
+          <SegmentedControl
+            options={filterOptions}
+            active={filter}
+            onChange={(id) => setFilter(id as StatusFilter)}
+          />
+        </div>
 
-      {filtered.length === 0 ? (
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-brand-muted gap-3 p-6">
-          <p className="text-sm uppercase tracking-widest font-semibold">
-            Cozinha
-          </p>
-          <p className="text-lg sm:text-xl text-center">
-            Sem pedidos {filter === "ativos" ? "a preparar" : ""}
-          </p>
-          <p className="text-sm text-center max-w-xs">
-            Os pedidos aparecem quando o empregado envia à cozinha
-          </p>
-        </div>
-      ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 max-w-[2000px] mx-auto w-full pb-4">
-          {filtered.map((order) => (
-            <KitchenTicket
-              key={`${order.orderId}-${order.items.map((i) => i.id).join()}-${order.kitchenAlert ?? ""}`}
-              order={order}
-              onStatusChange={handleStatusChange}
-              onDismissAlert={handleDismissAlert}
-            />
-          ))}
-        </div>
-      )}
+        {filtered.length === 0 ? (
+          <div className="staff-station-empty">
+            <p className="text-sm uppercase tracking-widest font-semibold">
+              Cozinha
+            </p>
+            <p className="text-lg">
+              Sem pedidos {filter === "ativos" ? "a preparar" : ""}
+            </p>
+            <p className="text-sm max-w-xs">
+              Os pedidos aparecem quando o empregado envia à cozinha
+            </p>
+          </div>
+        ) : (
+          <div className="staff-ticket-rail scrollbar-thin">
+            {filtered.map((order) => (
+              <KitchenTicket
+                key={`${order.orderId}-${order.items.map((i) => i.id).join()}-${order.kitchenAlert ?? ""}`}
+                order={order}
+                onStatusChange={handleStatusChange}
+                onDismissAlert={handleDismissAlert}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

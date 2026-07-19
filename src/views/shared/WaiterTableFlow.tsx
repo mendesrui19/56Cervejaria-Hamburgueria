@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AddToast } from "@/components/AddToast";
+import { playReadyForPickupSound } from "@/lib/kitchen-sound";
 import {
   ScreenBody,
   ScreenFooter,
@@ -87,6 +88,8 @@ export function WaiterTableFlow({
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const knownReadyIds = useRef<Set<string>>(new Set());
+  const readySoundReady = useRef(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(nameStorageKey);
@@ -96,6 +99,36 @@ export function WaiterTableFlow({
   useEffect(() => {
     if (waiterName) localStorage.setItem(nameStorageKey, waiterName);
   }, [waiterName, nameStorageKey]);
+
+  useEffect(() => {
+    if (!state) return;
+
+    const readyIds = new Set<string>();
+    for (const order of state.orders) {
+      if (order.paidAt) continue;
+      const table = state.tables.find((t) => t.orderId === order.id);
+      if (!table) continue;
+      for (const item of order.items) {
+        if (!item.isAddon && item.status === "pronto") {
+          readyIds.add(item.id);
+        }
+      }
+    }
+
+    if (!readySoundReady.current) {
+      knownReadyIds.current = readyIds;
+      readySoundReady.current = true;
+      return;
+    }
+
+    for (const id of readyIds) {
+      if (!knownReadyIds.current.has(id)) {
+        playReadyForPickupSound();
+        break;
+      }
+    }
+    knownReadyIds.current = readyIds;
+  }, [state]);
 
   const currentOrder = state?.orders.find(
     (o) =>
@@ -108,7 +141,7 @@ export function WaiterTableFlow({
   const total = currentOrder ? calculateOrderTotal(currentOrder) : 0;
   const pendingCount =
     currentOrder?.items.filter(
-      (i) => !i.isAddon && !i.skipKitchen && i.status === "pendente"
+      (i) => !i.isAddon && i.status === "pendente"
     ).length ?? 0;
   const itemCount =
     currentOrder?.items.filter((i) => !i.isAddon).length ?? 0;
@@ -254,7 +287,9 @@ export function WaiterTableFlow({
       setError("");
       try {
         await addItem(selectedTable, { menuItemId: item.id, ...payload });
-        const msg = item.isAddon ? `+ ${item.name} no prato` : item.name;
+        const msg = item.isAddon
+          ? `+ ${item.name} no prato`
+          : `${item.name} · pendente`;
         setToast(msg);
         setCustomizeItem(null);
         setScreen("menu");
@@ -288,13 +323,24 @@ export function WaiterTableFlow({
   const handleSendToKitchen = useCallback(
     async (itemIds?: string[]) => {
       if (!selectedTable || pendingCount === 0) return;
-      const count = itemIds?.length ?? pendingCount;
+      const pending =
+        currentOrder?.items.filter(
+          (i) =>
+            !i.isAddon &&
+            i.status === "pendente" &&
+            (!itemIds || itemIds.includes(i.id))
+        ) ?? [];
+      const count = pending.length;
+      if (count === 0) return;
+      const drinks = pending.filter((i) => i.skipKitchen).length;
+      const food = pending.length - drinks;
       setLoading(true);
       try {
         await sendToKitchen(selectedTable, itemIds);
-        setToast(
-          `${count} enviado${count > 1 ? "s" : ""} à cozinha`
-        );
+        const parts: string[] = [];
+        if (food > 0) parts.push(`${food} à cozinha`);
+        if (drinks > 0) parts.push(`${drinks} ao bar`);
+        setToast(parts.join(" · ") || "Enviado");
         refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro");
@@ -302,7 +348,7 @@ export function WaiterTableFlow({
         setLoading(false);
       }
     },
-    [selectedTable, pendingCount, refresh]
+    [selectedTable, pendingCount, currentOrder, refresh]
   );
 
   const handleGuestCountChange = useCallback(
@@ -670,12 +716,15 @@ export function WaiterTableFlow({
 
         {pendingCount > 0 && (
           <ScreenFooter compact={nested}>
+            <p className="text-[11px] text-brand-muted text-center mb-2 leading-snug">
+              Só vai para cozinha/bar depois de enviares
+            </p>
             <button
               onClick={() => handleSendToKitchen()}
               disabled={loading}
               className="btn-primary w-full text-base"
             >
-              Enviar {pendingCount} à Cozinha
+              Enviar {pendingCount} pendente{pendingCount > 1 ? "s" : ""}
             </button>
           </ScreenFooter>
         )}

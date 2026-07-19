@@ -126,6 +126,8 @@ export interface Order {
   paymentCard?: number;
   kitchenAlert?: string;
   kitchenAlertAt?: string;
+  barAlert?: string;
+  barAlertAt?: string;
 }
 
 export interface Table {

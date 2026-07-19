@@ -44,6 +44,13 @@ export function playNewOrderSound() {
   setTimeout(() => playTone(1100, 0.18, 0.4), 140);
 }
 
+/** Item pronto para o empregado ir buscar (cozinha ou bar) */
+export function playReadyForPickupSound() {
+  playTone(660, 0.1, 0.38);
+  setTimeout(() => playTone(880, 0.12, 0.4), 110);
+  setTimeout(() => playTone(1320, 0.2, 0.42), 240);
+}
+
 /** Alerta vermelho (cancelamento, alteração, transferência) */
 export function playKitchenAlertSound() {
   playTone(520, 0.2, 0.45, "square");

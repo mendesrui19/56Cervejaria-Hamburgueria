@@ -65,7 +65,7 @@ function ItemRow({
   const isReady = item.status === "pronto";
   const canEdit =
     isPending || (inPreparation && Boolean(menuItem));
-  const canCancelKitchen = inPreparation && !item.skipKitchen;
+  const canCancelSent = inPreparation;
 
   return (
     <div
@@ -81,7 +81,7 @@ function ItemRow({
               onClick={onToggleSelect}
               className="mb-2 text-xs font-bold text-brand-gold touch-manipulation"
             >
-              {selected ? "✓ Seleccionado para cozinha" : "Seleccionar para cozinha"}
+              {selected ? "✓ Seleccionado para enviar" : "Seleccionar para enviar"}
             </button>
           )}
           <p className="font-bold text-brand-gold text-base">
@@ -105,12 +105,13 @@ function ItemRow({
           {item.notes && (
             <p className="text-xs text-amber-700 mt-1">Nota: {item.notes}</p>
           )}
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {item.skipKitchen ? (
-              <span className="badge-livre">Bar</span>
-            ) : (
-              <ItemStatusBadge status={item.status} />
-            )}
+              <span className="badge bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Bar
+              </span>
+            ) : null}
+            <ItemStatusBadge status={item.status} />
           </div>
         </div>
         <p className="font-bold text-brand-gold text-lg shrink-0">
@@ -118,7 +119,7 @@ function ItemRow({
         </p>
       </div>
 
-      {isPending && !item.skipKitchen && (
+      {isPending && (
         <div className="flex items-center gap-3 mt-3">
           <span className="text-xs text-brand-muted font-semibold">Qtd</span>
           <button
@@ -162,17 +163,18 @@ function ItemRow({
             Editar
           </button>
         )}
-        {canCancelKitchen && (
+        {canCancelSent && (
           <button
             onClick={() => onCancel(item.id)}
             className="text-sm text-red-600 font-semibold py-1 touch-manipulation"
           >
-            Cancelar prato
+            {item.skipKitchen ? "Cancelar bebida" : "Cancelar prato"}
           </button>
         )}
-        {isReady && !item.skipKitchen && (
+        {isReady && (
           <p className="text-xs text-brand-muted w-full">
-            Já pronto na cozinha — não é possível alterar daqui.
+            Já pronto {item.skipKitchen ? "no bar" : "na cozinha"} — não é
+            possível alterar daqui.
           </p>
         )}
       </div>
@@ -207,17 +209,17 @@ export function PedidoPage({
     (i) => i.status !== "cancelado" && !i.isAddon
   );
 
-  const pendingKitchenItems = useMemo(
-    () =>
-      items.filter(
-        (item) => !item.skipKitchen && item.status === "pendente"
-      ),
+  const pendingItems = useMemo(
+    () => items.filter((item) => item.status === "pendente"),
     [items]
   );
 
-  const selectedPending = pendingKitchenItems.filter((item) =>
+  const selectedPending = pendingItems.filter((item) =>
     selectedIds.has(item.id)
   );
+
+  const pendingFood = pendingItems.filter((item) => !item.skipKitchen).length;
+  const pendingDrinks = pendingItems.filter((item) => item.skipKitchen).length;
 
   function toggleItem(id: string) {
     setSelectedIds((prev) => {
@@ -229,7 +231,17 @@ export function PedidoPage({
   }
 
   function selectAllPending() {
-    setSelectedIds(new Set(pendingKitchenItems.map((item) => item.id)));
+    setSelectedIds(new Set(pendingItems.map((item) => item.id)));
+  }
+
+  function sendButtonLabel(count: number) {
+    if (pendingFood > 0 && pendingDrinks > 0) {
+      return `Enviar ${count} (cozinha e bar)`;
+    }
+    if (pendingDrinks > 0 && pendingFood === 0) {
+      return `Enviar ${count} ao bar`;
+    }
+    return `Enviar ${count} à cozinha`;
   }
 
   function clearSelection() {
@@ -289,6 +301,14 @@ export function PedidoPage({
           <p>{order.kitchenAlert}</p>
         </div>
       )}
+      {order.barAlert && (
+        <div className="mx-4 mt-3 rounded-xl bg-emerald-50 border border-emerald-300 px-4 py-3 text-emerald-950 text-sm">
+          <p className="font-bold uppercase tracking-wide text-xs mb-1">
+            Alerta bar activo
+          </p>
+          <p>{order.barAlert}</p>
+        </div>
+      )}
 
       <ScreenBody>
         <div className="p-4 space-y-3">
@@ -304,7 +324,7 @@ export function PedidoPage({
             </div>
           ) : (
             <>
-              {pendingKitchenItems.length > 1 && (
+              {pendingItems.length > 1 && (
                 <div className="flex flex-wrap gap-2 mb-1">
                   <button
                     type="button"
@@ -333,9 +353,7 @@ export function PedidoPage({
                   onCancel={onCancelItem}
                   onEdit={onEditItem}
                   onUpdateQuantity={onUpdateQuantity}
-                  selectable={
-                    !item.skipKitchen && item.status === "pendente"
-                  }
+                  selectable={item.status === "pendente"}
                   selected={selectedIds.has(item.id)}
                   onToggleSelect={() => toggleItem(item.id)}
                 />
@@ -358,6 +376,10 @@ export function PedidoPage({
 
           {pendingCount > 0 && (
             <div className="space-y-2">
+              <p className="text-[11px] text-brand-muted text-center leading-snug">
+                Pendente = ainda podes alterar. Só vai ao destino depois de
+                enviares.
+              </p>
               {selectedPending.length > 0 && (
                 <button
                   onClick={handleSendSelected}
@@ -365,7 +387,7 @@ export function PedidoPage({
                   className="btn-secondary w-full text-base"
                 >
                   Enviar {selectedPending.length} seleccionado
-                  {selectedPending.length > 1 ? "s" : ""} à Cozinha
+                  {selectedPending.length > 1 ? "s" : ""}
                 </button>
               )}
               <button
@@ -373,7 +395,7 @@ export function PedidoPage({
                 disabled={loading}
                 className="btn-primary w-full text-base"
               >
-                Enviar {pendingCount} à Cozinha
+                {sendButtonLabel(pendingCount)}
               </button>
             </div>
           )}
@@ -616,7 +638,7 @@ export function MesasPage({
   function tableHasAlert(table: Table) {
     if (!table.orderId) return false;
     const order = orders.find((entry) => entry.id === table.orderId);
-    return Boolean(order?.kitchenAlert);
+    return Boolean(order?.kitchenAlert || order?.barAlert);
   }
 
   function tableReadyCount(table: Table): number {
@@ -624,11 +646,28 @@ export function MesasPage({
     const order = orders.find((entry) => entry.id === table.orderId);
     if (!order) return 0;
     return order.items
-      .filter(
-        (item) =>
-          !item.isAddon && !item.skipKitchen && item.status === "pronto"
-      )
+      .filter((item) => !item.isAddon && item.status === "pronto")
       .reduce((sum, item) => sum + item.quantity, 0);
+  }
+
+  function tableReadyHint(table: Table): string | null {
+    if (!table.orderId) return null;
+    const order = orders.find((entry) => entry.id === table.orderId);
+    if (!order) return null;
+    const ready = order.items.filter(
+      (item) => !item.isAddon && item.status === "pronto"
+    );
+    if (ready.length === 0) return null;
+    const food = ready
+      .filter((i) => !i.skipKitchen)
+      .reduce((s, i) => s + i.quantity, 0);
+    const drinks = ready
+      .filter((i) => i.skipKitchen)
+      .reduce((s, i) => s + i.quantity, 0);
+    const parts: string[] = [];
+    if (food > 0) parts.push(`${food} comida`);
+    if (drinks > 0) parts.push(`${drinks} bebida${drinks > 1 ? "s" : ""}`);
+    return parts.join(" · ") || `${ready.reduce((s, i) => s + i.quantity, 0)} prontos`;
   }
 
   return (
@@ -688,6 +727,7 @@ export function MesasPage({
           <div className={`grid grid-cols-4 ${nested ? "gap-2" : "gap-3"}`}>
             {diningTables.map((table) => {
               const readyCount = tableReadyCount(table);
+              const readyHint = tableReadyHint(table);
               const hasAlert = tableHasAlert(table);
 
               return (
@@ -700,7 +740,7 @@ export function MesasPage({
                     hasAlert
                       ? "bg-red-50 border-2 border-red-400 text-red-900"
                       : readyCount > 0
-                      ? "bg-green-50 border-2 border-green-400 text-green-900"
+                      ? "bg-green-50 border-2 border-green-500 text-green-950 shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
                       : table.status === "a_pagar"
                       ? "bg-orange-50 border-2 border-orange-400 text-orange-900"
                       : table.status === "ocupada"
@@ -711,16 +751,16 @@ export function MesasPage({
                   <span className="text-2xl font-black block">
                     {tableShortLabel(table.number)}
                   </span>
-                  <span className="text-[10px] font-medium opacity-80">
+                  <span className="text-[10px] font-medium opacity-80 px-0.5 leading-tight block">
                     {hasAlert
                       ? "Alerta"
-                      : readyCount > 0
-                      ? `${readyCount} pronto${readyCount > 1 ? "s" : ""}`
-                      : table.status === "livre"
-                      ? "Livre"
-                      : table.status === "a_pagar"
-                      ? "Conta"
-                      : "Ocup."}
+                      : readyHint
+                        ? readyHint
+                        : table.status === "livre"
+                          ? "Livre"
+                          : table.status === "a_pagar"
+                            ? "Conta"
+                            : "Ocup."}
                   </span>
                 </button>
               );
@@ -737,7 +777,7 @@ export function MesasPage({
                 tableHasAlert(balcaoTable)
                   ? "bg-red-50 border-2 border-red-400 text-red-900"
                   : tableReadyCount(balcaoTable) > 0
-                  ? "bg-green-50 border-2 border-green-400 text-green-900"
+                  ? "bg-green-50 border-2 border-green-500 text-green-950 shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
                   : balcaoTable.status === "a_pagar"
                   ? "bg-orange-50 border-2 border-orange-400 text-orange-900"
                   : balcaoTable.status === "ocupada"
@@ -749,11 +789,13 @@ export function MesasPage({
                 <div>
                   <p className="text-lg font-black leading-none">Balcão</p>
                   <p className="text-[11px] font-medium opacity-80 mt-1">
-                    Takeaway / sem mesa
+                    {tableReadyHint(balcaoTable) ?? "Takeaway / sem mesa"}
                   </p>
                 </div>
                 <span className="text-xs font-bold uppercase tracking-wide opacity-80">
-                  {balcaoTable.status === "livre"
+                  {tableReadyCount(balcaoTable) > 0
+                    ? "Prontos"
+                    : balcaoTable.status === "livre"
                     ? "Livre"
                     : balcaoTable.status === "a_pagar"
                     ? "Conta"
