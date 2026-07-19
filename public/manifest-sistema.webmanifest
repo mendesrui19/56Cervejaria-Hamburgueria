@@ -1,16 +1,19 @@
 {
   "id": "/sistema-app",
   "name": "Cinquenta & Seis — Staff",
-  "short_name": "Staff",
-  "description": "Empregado, cozinha, caixa e gestão do restaurante.",
+  "short_name": "Staff 56",
+  "description": "Empregado, cozinha, caixa e gestão — tablets Android.",
   "start_url": "/sistema",
   "scope": "/",
   "display": "fullscreen",
-  "orientation": "any",
-  "background_color": "#F8F6F2",
-  "theme_color": "#B8860B",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "landscape",
+  "background_color": "#ebe4d8",
+  "theme_color": "#ebe4d8",
   "lang": "pt-PT",
-  "categories": ["food", "business"],
+  "dir": "ltr",
+  "categories": ["food", "business", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/favicon.png",
@@ -26,9 +29,51 @@
     },
     {
       "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Empregado",
+      "short_name": "Mesas",
+      "description": "Mapa de mesas e pedidos",
+      "url": "/empregado",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cozinha",
+      "short_name": "Cozinha",
+      "description": "Tickets de preparação",
+      "url": "/cozinha",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Caixa",
+      "short_name": "Caixa",
+      "description": "Pagamentos e bar",
+      "url": "/caixa",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Gestor56",
+      "short_name": "Gestão",
+      "description": "Dashboard e operações",
+      "url": "/gestor56",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -36,15 +36,15 @@ const SECTION_META: Record<
 > = {
   relatorios: {
     title: "Dashboard",
-    subtitle: "O que importa para gerir o serviço",
+    subtitle: "Sala · dinheiro · vendas",
   },
   operacoes: {
     title: "Operações",
-    subtitle: "Mapa de mesas em tempo real",
+    subtitle: "Mapa de mesas ao vivo",
   },
   historico: {
     title: "Histórico",
-    subtitle: "Contas fechadas com detalhe e exportação",
+    subtitle: "Contas do dia, semana ou mês · exportar CSV",
   },
   auditoria: {
     title: "Auditoria",
@@ -484,6 +484,7 @@ export default function AdminView() {
           kpis={kpis}
           anchorDate={anchorDate}
           showLive={showLive}
+          onOpenOperations={() => setSection("operacoes")}
         />
       ) : section === "historico" ? (
         <AdminHistory

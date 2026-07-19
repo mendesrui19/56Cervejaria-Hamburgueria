@@ -2,28 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { StaffPwaConfig } from "@/lib/pwa";
+import { isAndroidDevice, isStaffStandalone } from "@/lib/staff-tablet";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in navigator &&
-      (navigator as Navigator & { standalone?: boolean }).standalone === true)
-  );
-}
-
-function isIos(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
-}
+const DISMISS_KEY = (id: string) => `pwa-install-dismiss-${id}`;
 
 export function StaffPwa({
   app,
@@ -36,23 +22,17 @@ export function StaffPwa({
     useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [installed, setInstalled] = useState(false);
-  const [showIosHint, setShowIosHint] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [android, setAndroid] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    setInstalled(isStandalone());
+    setInstalled(isStaffStandalone());
+    setAndroid(isAndroidDevice());
+    setDismissed(Boolean(localStorage.getItem(DISMISS_KEY(app.id))));
 
     if ("serviceWorker" in navigator) {
       void navigator.serviceWorker.register("/sw.js", { scope: "/" });
-    }
-
-    let iosTimer: number | undefined;
-    if (!isStandalone() && isIos()) {
-      const key = `pwa-ios-hint-${app.id}`;
-      if (!localStorage.getItem(key)) {
-        iosTimer = window.setTimeout(() => setShowIosHint(true), 1200);
-      }
     }
 
     const onInstallable = (event: Event) => {
@@ -63,14 +43,13 @@ export function StaffPwa({
     const onInstalled = () => {
       setInstalled(true);
       setInstallEvent(null);
-      setShowIosHint(false);
+      localStorage.removeItem(DISMISS_KEY(app.id));
     };
 
     window.addEventListener("beforeinstallprompt", onInstallable);
     window.addEventListener("appinstalled", onInstalled);
 
     return () => {
-      if (iosTimer) window.clearTimeout(iosTimer);
       window.removeEventListener("beforeinstallprompt", onInstallable);
       window.removeEventListener("appinstalled", onInstalled);
     };
@@ -78,79 +57,57 @@ export function StaffPwa({
 
   const dismissBanner = useCallback(() => {
     setDismissed(true);
-    setShowIosHint(false);
-    if (isIos()) {
-      localStorage.setItem(`pwa-ios-hint-${app.id}`, "1");
-    }
+    localStorage.setItem(DISMISS_KEY(app.id), "1");
   }, [app.id]);
 
   const handleInstall = useCallback(async () => {
-    if (!installEvent) {
-      if (isIos() && !installed) setShowIosHint(true);
-      return;
-    }
-
+    if (!installEvent) return;
     await installEvent.prompt();
     const { outcome } = await installEvent.userChoice;
     if (outcome === "accepted") {
       setInstalled(true);
     }
     setInstallEvent(null);
-  }, [installEvent, installed]);
+  }, [installEvent]);
 
-  const showAndroidBanner =
-    mounted && Boolean(installEvent) && !installed && !dismissed;
-  const showIosBanner =
+  const showInstallBanner =
     mounted &&
-    (showIosHint || (isIos() && !installed && !dismissed && !installEvent)) &&
+    Boolean(installEvent) &&
+    !installed &&
     !dismissed;
 
   return (
     <>
-      {showAndroidBanner && (
-        <div className="sticky top-0 z-50 border-b border-brand-gold/20 bg-amber-50 px-3 py-2.5">
-          <div className="flex items-center gap-2 max-w-3xl mx-auto">
-            <p className="text-xs sm:text-sm text-stone-800 flex-1 min-w-0">
-              Instalar <span className="font-bold">{app.shortName}</span> no
-              telemóvel ou tablet
+      {showInstallBanner ? (
+        <div className="fixed bottom-3 inset-x-3 z-[60] sm:bottom-4 sm:inset-x-auto sm:right-4 sm:max-w-sm">
+          <div className="rounded-2xl border border-brand-gold/30 bg-white shadow-xl px-4 py-3.5">
+            <p className="text-sm font-bold text-brand-gold">
+              Instalar {app.shortName} no tablet
             </p>
-            <button
-              type="button"
-              onClick={() => void handleInstall()}
-              className="shrink-0 rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-white"
-            >
-              Instalar
-            </button>
-            <button
-              type="button"
-              onClick={dismissBanner}
-              className="shrink-0 text-xs font-semibold text-brand-muted px-1"
-              aria-label="Fechar"
-            >
-              ✕
-            </button>
+            <p className="text-xs text-brand-muted mt-1 leading-snug">
+              {android
+                ? "Abre em ecrã inteiro, sem barra do Chrome — ideal para o serviço."
+                : "Adiciona ao ecrã inicial para usar como app."}
+            </p>
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => void handleInstall()}
+                className="flex-1 min-h-[44px] rounded-xl bg-brand-gold text-white text-sm font-bold touch-manipulation"
+              >
+                Instalar
+              </button>
+              <button
+                type="button"
+                onClick={dismissBanner}
+                className="min-h-[44px] px-3 rounded-xl border border-brand-line text-xs font-semibold text-brand-muted touch-manipulation"
+              >
+                Agora não
+              </button>
+            </div>
           </div>
         </div>
-      )}
-
-      {showIosBanner && !showAndroidBanner && (
-        <div className="sticky top-0 z-50 border-b border-brand-gold/20 bg-amber-50 px-3 py-2.5">
-          <div className="max-w-3xl mx-auto">
-            <p className="text-xs sm:text-sm text-stone-800">
-              <span className="font-bold">{app.shortName} no iPhone/iPad:</span>{" "}
-              Safari → Partilhar →{" "}
-              <span className="font-semibold">Adicionar ao Ecrã Principal</span>
-            </p>
-            <button
-              type="button"
-              onClick={dismissBanner}
-              className="text-[11px] font-semibold text-brand-muted mt-1"
-            >
-              Entendido
-            </button>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {children}
     </>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppHeader, SegmentedControl } from "@/components/AppHeader";
+import { StaffLoader } from "@/components/StaffLoader";
 import { ItemStatusBadge } from "@/components/StatusBadge";
 import { dismissKitchenAlert, fetchKitchen, updateItemStatus } from "@/lib/api";
 import { getKitchenZoneLabel } from "@/lib/kitchen-zones";
@@ -83,17 +84,6 @@ function KitchenItemCard({
         </div>
         <ItemStatusBadge status={item.status} size="lg" />
       </div>
-
-      {item.kitchenNotes && (
-        <div className="rounded-lg bg-indigo-50 border border-indigo-300 px-3 py-2">
-          <p className="text-[10px] text-indigo-900 font-black uppercase tracking-wide">
-            Preparação
-          </p>
-          <p className="text-sm text-indigo-950 font-bold mt-0.5 leading-snug">
-            {item.kitchenNotes}
-          </p>
-        </div>
-      )}
 
       {item.choices.length > 0 && (
         <div>
@@ -290,10 +280,11 @@ function KitchenTicket({
 }
 
 export default function CozinhaView() {
-  const { data: orders, refresh } = usePolling<KitchenOrder[]>(
-    fetchKitchen,
-    2000
-  );
+  const {
+    data: orders,
+    loading: ordersLoading,
+    refresh,
+  } = usePolling<KitchenOrder[]>(fetchKitchen, 2000);
   const [filter, setFilter] = useState<StatusFilter>("ativos");
   const knownItemIds = useRef<Set<string>>(new Set());
   const knownAlerts = useRef<Map<string, string>>(new Map());
@@ -399,8 +390,12 @@ export default function CozinhaView() {
     { id: "todos", label: "Todos" },
   ];
 
+  if (!orders && ordersLoading) {
+    return <StaffLoader label="A carregar cozinha…" fullScreen />;
+  }
+
   return (
-    <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
+    <div className="staff-shell">
       <AppHeader
         title="Cozinha"
         subtitle={`${activeCount} a preparar · ${readyCount} prontos`}

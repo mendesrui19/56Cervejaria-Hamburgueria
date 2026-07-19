@@ -12,12 +12,12 @@ export interface StaffPwaConfig {
 export const SISTEMA_PWA: StaffPwaConfig = {
   id: "sistema",
   title: "Cinquenta & Seis — Staff",
-  shortName: "Staff",
-  description: "Empregado, cozinha, caixa e gestão do restaurante.",
+  shortName: "Staff 56",
+  description: "Empregado, cozinha, caixa e gestão — tablets Android.",
   startUrl: "/sistema",
   manifestPath: "/manifest-sistema.webmanifest",
-  themeColor: "#B8860B",
-  backgroundColor: "#F8F6F2",
+  themeColor: "#ebe4d8",
+  backgroundColor: "#ebe4d8",
 };
 
 export const FIDELIZACAO_PWA: StaffPwaConfig = {

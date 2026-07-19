@@ -91,7 +91,7 @@ export default function FidelizacaoScannerView() {
   }
 
   return (
-    <div className="staff-safe-screen min-h-dvh bg-brand-dark">
+    <div className="staff-shell">
       {result && (
         <StampCelebration
           stampsAdded={result.stampsAdded}
@@ -106,7 +106,7 @@ export default function FidelizacaoScannerView() {
         subtitle="Ler QR ou código do cliente"
       />
 
-      <main className="p-4 max-w-lg mx-auto space-y-4">
+      <main className="flex-1 min-h-0 overflow-y-auto p-4 max-w-lg mx-auto w-full space-y-4">
         <div className="card space-y-3">
           <label className="text-sm font-bold text-brand-gold block">
             Código do cliente

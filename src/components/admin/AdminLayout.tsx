@@ -13,8 +13,8 @@ export type AdminSection =
   | "catalogo";
 
 const NAV_ALL: { id: AdminSection; label: string; desc: string }[] = [
-  { id: "relatorios", label: "Dashboard", desc: "Vista do serviço" },
-  { id: "operacoes", label: "Operações", desc: "Mapa de mesas" },
+  { id: "relatorios", label: "Dashboard", desc: "Sala + números" },
+  { id: "operacoes", label: "Operações", desc: "Mapa ao vivo" },
   { id: "historico", label: "Histórico", desc: "Contas fechadas" },
   { id: "auditoria", label: "Auditoria", desc: "Excepções" },
   { id: "fidelizacao", label: "App 56", desc: "Cartão de selos" },
@@ -73,9 +73,9 @@ export function AdminLayout({
   children,
 }: AdminLayoutProps) {
   return (
-    <div className="min-h-dvh flex bg-brand-dark staff-safe-screen">
-      <aside className="hidden md:flex w-56 lg:w-60 shrink-0 flex-col border-r border-brand-line bg-white">
-        <div className="p-4 border-b border-brand-line">
+    <div className="admin-shell">
+      <aside className="admin-shell-aside">
+        <div className="p-4 border-b border-brand-line shrink-0">
           <p className="text-[10px] uppercase tracking-widest text-brand-muted font-bold">
             Gestão
           </p>
@@ -84,7 +84,7 @@ export function AdminLayout({
           </h1>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {NAV.map((item) => (
             <NavButton
               key={item.id}
@@ -95,7 +95,7 @@ export function AdminLayout({
           ))}
         </nav>
 
-        <div className="p-3 border-t border-brand-line space-y-1">
+        <div className="mt-auto p-3 border-t border-brand-line shrink-0">
           <Link
             href="/sistema"
             className="block rounded-xl px-3 py-2.5 text-xs font-semibold text-brand-muted hover:text-brand-gold hover:bg-brand-surface transition-colors"
@@ -105,14 +105,14 @@ export function AdminLayout({
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 pb-[72px] md:pb-0">
+      <div className="admin-shell-main pb-[72px] md:pb-0">
         <AppHeader
           title={title}
           subtitle={subtitle}
           actions={toolbar}
         />
 
-        <main className="flex-1 overflow-y-auto scrollbar-thin p-4 lg:p-6">
+        <main className="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-4 lg:p-6">
           <div className="max-w-6xl mx-auto w-full">{children}</div>
         </main>
       </div>

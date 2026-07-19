@@ -59,6 +59,19 @@ export async function openTable(
   return res.json();
 }
 
+export async function addDiningTable(actorName?: string) {
+  const res = await apiFetch("/api/tables/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actorName }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao adicionar mesa");
+  }
+  return res.json() as Promise<{ table: { number: number } }>;
+}
+
 export async function addItem(
   tableNumber: number,
   payload: {

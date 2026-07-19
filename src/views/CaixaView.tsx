@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppHeader, SegmentedControl } from "@/components/AppHeader";
 import { CaixaBebidasPanel } from "@/components/caixa/CaixaBebidasPanel";
+import { StaffLoader } from "@/components/StaffLoader";
 import { ItemStatusBadge, TableStatusBadge } from "@/components/StatusBadge";
 import { fetchCashier, fetchDayClose, fetchRecentPayments, processPayment, voidPayment } from "@/lib/api";
 import { FEATURE_LOYALTY } from "@/lib/feature-flags";
@@ -758,10 +759,11 @@ export default function CaixaView() {
   const isSplit = useMediaQuery(CAIXA_SPLIT);
   const [tab, setTab] = useState<CaixaTab>("pagamentos");
   const [dualPanel, setDualPanel] = useState(false);
-  const { data: entries, refresh } = usePolling<CashierEntry[]>(
-    fetchCashier,
-    3000
-  );
+  const {
+    data: entries,
+    loading: entriesLoading,
+    refresh,
+  } = usePolling<CashierEntry[]>(fetchCashier, 3000);
 
   useEffect(() => {
     try {
@@ -1017,9 +1019,13 @@ export default function CaixaView() {
         return a.table.number - b.table.number;
       }) ?? [];
 
+  if (!entries && entriesLoading && tab !== "mesas" && tab !== "bebidas") {
+    return <StaffLoader label="A carregar caixa…" fullScreen />;
+  }
+
   if (tab === "fecho") {
     return (
-      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
+      <div className="staff-shell">
         <AppHeader title="Caixa" subtitle="Fecho do dia" />
         <CaixaTabBar active={tab} onChange={setTab} />
         {dayClose ? (
@@ -1029,9 +1035,7 @@ export default function CaixaView() {
             onVoid={handleVoid}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-brand-muted text-sm">
-            A carregar…
-          </div>
+          <StaffLoader label="A carregar fecho…" />
         )}
       </div>
     );
@@ -1039,7 +1043,7 @@ export default function CaixaView() {
 
   if (tab === "mesas") {
     return (
-      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
+      <div className="staff-shell">
         <AppHeader title="Caixa" subtitle="Gestão de mesas" />
         <CaixaTabBar active={tab} onChange={setTab} />
         <div className="flex-1 min-h-0 overflow-hidden">
@@ -1091,7 +1095,7 @@ export default function CaixaView() {
           <aside
             className={`${
               dualPanel ? "w-36 lg:w-40" : "w-44 lg:w-52 xl:w-56"
-            } border-r border-brand-line overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1.5 flex-shrink-0 bg-white`}
+            } self-stretch h-full min-h-0 border-r border-brand-line overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1.5 flex-shrink-0 bg-white`}
           >
             {activeTables.length > 0 ? (
               activeTables.map((entry) => (
@@ -1167,7 +1171,7 @@ export default function CaixaView() {
 
   if (dualPanel) {
     return (
-      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
+      <div className="staff-shell">
         <AppHeader
           title="Caixa"
           subtitle="Pagamentos + Bebidas"
@@ -1199,7 +1203,7 @@ export default function CaixaView() {
 
   if (tab === "bebidas") {
     return (
-      <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
+      <div className="staff-shell">
         <AppHeader
           title="Caixa"
           subtitle="Bebidas · bar"
@@ -1212,7 +1216,7 @@ export default function CaixaView() {
   }
 
   return (
-    <div className="staff-safe-screen h-dvh flex flex-col overflow-hidden">
+    <div className="staff-shell">
       <AppHeader
         title="Caixa"
         subtitle={`${activeTables.length} mesa${activeTables.length !== 1 ? "s" : ""} ativa${activeTables.length !== 1 ? "s" : ""}`}

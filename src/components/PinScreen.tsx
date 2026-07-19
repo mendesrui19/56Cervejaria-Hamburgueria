@@ -85,7 +85,7 @@ export function PinScreen({
   }
 
   return (
-    <div className="staff-safe-screen flex flex-col items-center justify-center p-6">
+    <div className="staff-shell items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <p className="text-brand-gold text-xs font-semibold tracking-widest uppercase mb-2">

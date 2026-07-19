@@ -14,10 +14,18 @@ export function staffPwaMetadata(app: StaffPwaConfig): Metadata {
     },
     formatDetection: {
       telephone: false,
+      email: false,
+      address: false,
     },
     icons: {
-      icon: "/favicon.png",
+      icon: [
+        { url: "/favicon.png", sizes: "192x192", type: "image/png" },
+        { url: "/favicon.png", sizes: "512x512", type: "image/png" },
+      ],
       apple: "/apple-icon.png",
+    },
+    other: {
+      "mobile-web-app-capable": "yes",
     },
   };
 }
@@ -29,6 +37,10 @@ export function staffPwaViewport(app: StaffPwaConfig): Viewport {
     maximumScale: 1,
     userScalable: false,
     viewportFit: "cover",
-    themeColor: app.themeColor,
+    themeColor: [
+      { media: "(prefers-color-scheme: light)", color: app.backgroundColor },
+      { media: "(prefers-color-scheme: dark)", color: app.backgroundColor },
+    ],
+    colorScheme: "light",
   };
 }

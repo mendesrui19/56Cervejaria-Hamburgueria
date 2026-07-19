@@ -190,6 +190,66 @@ export function getPreviousPeriodLabel(
   return formatPeriodLabel(period, getPreviousPeriodReference(period, reference));
 }
 
+/** Rótulo curto para badges de comparação. */
+export function getPreviousPeriodShortLabel(period: AnalyticsPeriod): string {
+  if (period === "day") return "ontem";
+  if (period === "week") return "semana anterior";
+  return "mês anterior";
+}
+
+/** Avança/recua o âncora do período (dia / semana / mês). */
+export function shiftAnchorDate(
+  period: AnalyticsPeriod,
+  anchorDate: string,
+  delta: number
+): string {
+  const ref = parseDateParam(anchorDate);
+
+  if (period === "day" || period === "week") {
+    ref.setDate(ref.getDate() + delta * (period === "week" ? 7 : 1));
+    return toDateParam(ref);
+  }
+
+  const shifted = new Date(ref.getFullYear(), ref.getMonth() + delta, 1);
+  const today = new Date();
+  if (
+    shifted.getFullYear() > today.getFullYear() ||
+    (shifted.getFullYear() === today.getFullYear() &&
+      shifted.getMonth() > today.getMonth())
+  ) {
+    return toDateParam(today);
+  }
+  // Âncora no meio do mês (ou hoje se for o mês corrente)
+  if (
+    shifted.getFullYear() === today.getFullYear() &&
+    shifted.getMonth() === today.getMonth()
+  ) {
+    return toDateParam(today);
+  }
+  return toDateParam(new Date(shifted.getFullYear(), shifted.getMonth(), 15));
+}
+
+export function canShiftAnchorForward(
+  period: AnalyticsPeriod,
+  anchorDate: string
+): boolean {
+  const today = toDateParam(new Date());
+  if (anchorDate >= today) return false;
+  const next = shiftAnchorDate(period, anchorDate, 1);
+  return next !== anchorDate && next <= today;
+}
+
+/** Dias de serviço já decorridos no período (para média/dia). */
+export function countElapsedDaysInPeriod(
+  period: AnalyticsPeriod,
+  reference = new Date()
+): number {
+  const { start, end } = getPeriodRange(period, reference);
+  const ms = Math.max(0, end.getTime() - start.getTime());
+  const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
+  return Math.max(1, days);
+}
+
 export const PERIOD_OPTIONS: { id: AnalyticsPeriod; label: string }[] = [
   { id: "day", label: "Dia" },
   { id: "week", label: "Semana" },

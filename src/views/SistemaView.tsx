@@ -55,7 +55,7 @@ function safeNextPath(next: string | null): string | null {
 
 function SistemaMenu() {
   return (
-    <main className="staff-safe-screen sistema-hub">
+    <main className="staff-shell sistema-hub">
       <header className="sistema-hub-header">
         <p className="sistema-hub-kicker">Staff</p>
         <h1 className="sistema-hub-title">Cinquenta & Seis</h1>
@@ -135,7 +135,7 @@ function SistemaGate() {
 
   if (auth === null) {
     return (
-      <div className="staff-safe-screen flex items-center justify-center text-brand-muted">
+      <div className="staff-shell items-center justify-center text-brand-muted">
         A carregar…
       </div>
     );
@@ -154,7 +154,7 @@ function SistemaGate() {
 
   if (next) {
     return (
-      <div className="staff-safe-screen flex items-center justify-center text-brand-muted">
+      <div className="staff-shell items-center justify-center text-brand-muted">
         A abrir…
       </div>
     );
@@ -167,7 +167,7 @@ export default function SistemaView() {
   return (
     <Suspense
       fallback={
-        <div className="staff-safe-screen flex items-center justify-center text-brand-muted">
+        <div className="staff-shell items-center justify-center text-brand-muted">
           A carregar…
         </div>
       }

@@ -99,6 +99,7 @@ export type AuditAction =
   | "request_bill"
   | "reopen_round"
   | "clear_table"
+  | "add_table"
   | "loyalty_redeem";
 
 export interface AuditLogEntry {

@@ -1,8 +1,11 @@
 import type { OrderItemStatus, PaymentMethod } from "./types";
 
+/** Quantidade inicial de mesas (1–20 + balcão). Empregados podem criar mais. */
 export const TABLE_COUNT = 21;
 /** Mesa virtual para pedidos de balcão / takeaway. */
 export const BALCAO_TABLE_NUMBER = 21;
+/** Limite máximo de mesas (inclui balcão e extras). */
+export const MAX_TABLE_NUMBER = 99;
 
 const PAYMENT_METHODS: PaymentMethod[] = [
   "dinheiro",
@@ -26,8 +29,12 @@ const BAR_TRANSITIONS: Partial<Record<OrderItemStatus, OrderItemStatus[]>> = {
 };
 
 export function assertTableNumber(tableNumber: number): number {
-  if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > TABLE_COUNT) {
-    throw new Error(`Mesa inválida (1–${TABLE_COUNT})`);
+  if (
+    !Number.isInteger(tableNumber) ||
+    tableNumber < 1 ||
+    tableNumber > MAX_TABLE_NUMBER
+  ) {
+    throw new Error(`Mesa inválida (1–${MAX_TABLE_NUMBER})`);
   }
   return tableNumber;
 }

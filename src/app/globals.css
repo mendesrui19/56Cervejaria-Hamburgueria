@@ -44,6 +44,183 @@ body {
   touch-action: manipulation;
 }
 
+/* Staff fullscreen: <html> é o elemento :fullscreen. */
+html:fullscreen,
+html:-webkit-full-screen {
+  background: #ebe4d8;
+  height: 100%;
+  width: 100%;
+}
+
+html:fullscreen body,
+html:-webkit-full-screen body {
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: #ebe4d8;
+}
+
+html:fullscreen .staff-safe-screen,
+html:-webkit-full-screen .staff-safe-screen {
+  height: 100%;
+  min-height: 100%;
+  max-height: 100%;
+}
+
+/*
+  Shells staff / Gestor56 — fixed inset-0 preenche o viewport (e fullscreen)
+  sem depender da cadeia height % do body.
+*/
+.staff-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ebe4d8;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+}
+
+.staff-loader-spinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 3px solid rgba(143, 104, 20, 0.18);
+  border-top-color: #8f6814;
+  animation: staff-loader-spin 0.7s linear infinite;
+}
+
+@keyframes staff-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staff-loader-spinner {
+    animation: none;
+    border-top-color: rgba(143, 104, 20, 0.35);
+    opacity: 0.85;
+  }
+}
+
+/* Body staff POS — tablets Android */
+body.staff-pos-body {
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  background: #ebe4d8;
+}
+
+body.staff-pos-body input,
+body.staff-pos-body textarea,
+body.staff-pos-body [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Tablet táctil: alvos maiores, tipografia confortável */
+html.staff-tablet {
+  font-size: 17px;
+}
+
+html.staff-tablet .staff-chrome-nav-btn,
+html.staff-tablet .btn-primary,
+html.staff-tablet .btn-secondary,
+html.staff-tablet button.touch-manipulation {
+  min-height: 48px;
+}
+
+html.staff-tablet .input {
+  min-height: 48px;
+  font-size: 1rem;
+}
+
+/* Paisagem em tablet: hub + mapa de mesas mais largo */
+@media (orientation: landscape) and (min-width: 900px) {
+  html.staff-tablet .sistema-hub {
+    padding-inline: 2rem;
+  }
+
+  html.staff-tablet .sistema-hub-grid {
+    width: min(100%, 48rem);
+  }
+
+  html.staff-tablet .staff-mesas-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (orientation: landscape) and (min-width: 1280px) {
+  html.staff-tablet .staff-mesas-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
+
+/* PWA / fullscreen instalada — sem bounce no Chrome Android */
+html.staff-standalone,
+html.staff-standalone body {
+  overscroll-behavior: none;
+  height: 100%;
+  overflow: hidden;
+}
+
+.admin-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  overflow: hidden;
+  background: #ebe4d8;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.admin-shell-aside {
+  display: none;
+  width: 14rem;
+  flex-shrink: 0;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: #fff;
+}
+
+@media (min-width: 768px) {
+  .admin-shell-aside {
+    display: flex;
+    width: 14rem; /* w-56 */
+  }
+}
+
+@media (min-width: 1024px) {
+  .admin-shell-aside {
+    width: 15rem; /* w-60 */
+  }
+}
+
+.admin-shell-main {
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ebe4d8;
+}
+
 html.site-loading,
 html.site-loading body {
   overflow: hidden;
@@ -346,18 +523,6 @@ html.site-ready .landing-hero-scroll {
     padding-right: env(safe-area-inset-right, 0px);
   }
 
-  /* Staff em ecrã inteiro (API Fullscreen / PWA display:fullscreen) */
-  :fullscreen,
-  :-webkit-full-screen {
-    background: #ebe4d8;
-  }
-
-  :fullscreen .staff-safe-screen,
-  :-webkit-full-screen .staff-safe-screen {
-    min-height: 100%;
-    height: 100%;
-  }
-
   .staff-safe-screen .staff-header {
     padding-top: 0;
   }
@@ -559,6 +724,12 @@ html.site-ready .landing-hero-scroll {
     min-height: 100dvh;
     min-height: 100svh;
     background: #ebe4d8;
+  }
+
+  /* Hub dentro do shell fixo (fullscreen) — preenche sem min-height 100dvh */
+  .staff-shell.sistema-hub {
+    min-height: 0;
+    height: 100%;
   }
 
   /* Evita faixa clara por baixo se o hub não preencher o body */

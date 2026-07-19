@@ -612,6 +612,8 @@ interface MesasPageProps {
   waiterName: string;
   onSetWaiterName: (n: string) => void;
   onSelectTable: (n: number) => void;
+  onAddTable?: () => void;
+  addingTable?: boolean;
   showPortalLink?: boolean;
   portalHref?: string;
   portalLabel?: string;
@@ -625,6 +627,8 @@ export function MesasPage({
   waiterName,
   onSetWaiterName,
   onSelectTable,
+  onAddTable,
+  addingTable = false,
   showPortalLink = true,
   portalHref = "/sistema",
   portalLabel = "Sistema",
@@ -724,7 +728,11 @@ export function MesasPage({
             </span>
           </div>
 
-          <div className={`grid grid-cols-4 ${nested ? "gap-2" : "gap-3"}`}>
+          <div
+            className={`staff-mesas-grid grid grid-cols-4 ${
+              nested ? "gap-2" : "gap-3"
+            }`}
+          >
             {diningTables.map((table) => {
               const readyCount = tableReadyCount(table);
               const readyHint = tableReadyHint(table);
@@ -804,6 +812,19 @@ export function MesasPage({
               </div>
             </button>
           )}
+
+          {onAddTable ? (
+            <button
+              type="button"
+              onClick={onAddTable}
+              disabled={addingTable}
+              className={`mt-3 w-full rounded-2xl border border-dashed border-brand-gold/40 bg-white/80 text-brand-gold font-bold touch-manipulation active:scale-[0.99] ${
+                nested ? "py-3 min-h-[48px] text-sm" : "py-3.5 min-h-[52px] text-sm"
+              } disabled:opacity-50`}
+            >
+              {addingTable ? "A criar…" : "+ Adicionar mesa"}
+            </button>
+          ) : null}
         </div>
       </ScreenBody>
     </ScreenPage>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AddToast } from "@/components/AddToast";
+import { StaffLoader } from "@/components/StaffLoader";
 import { playReadyForPickupSound } from "@/lib/kitchen-sound";
 import {
   ScreenBody,
@@ -10,6 +11,7 @@ import {
   ScreenPage,
 } from "@/components/ScreenLayout";
 import {
+  addDiningTable,
   addItem,
   cancelItem,
   clearTable,
@@ -69,7 +71,11 @@ export function WaiterTableFlow({
   nameStorageKey = "waiterName",
   nested = false,
 }: WaiterTableFlowProps) {
-  const { data: state, refresh } = usePolling<RestaurantState>(fetchState, 3000);
+  const {
+    data: state,
+    loading: stateLoading,
+    refresh,
+  } = usePolling<RestaurantState>(fetchState, 3000);
   const {
     categories,
     items: menuItems,
@@ -88,6 +94,7 @@ export function WaiterTableFlow({
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [addingTable, setAddingTable] = useState(false);
   const knownReadyIds = useRef<Set<string>>(new Set());
   const readySoundReady = useRef(false);
 
@@ -181,6 +188,25 @@ export function WaiterTableFlow({
     },
     [state, waiterName]
   );
+
+  const handleAddTable = useCallback(async () => {
+    if (!waiterName.trim()) {
+      setError("Escreve o teu nome antes de adicionar uma mesa.");
+      return;
+    }
+    if (!window.confirm("Adicionar uma mesa nova ao mapa?")) return;
+    setAddingTable(true);
+    setError("");
+    try {
+      const { table } = await addDiningTable(waiterName.trim());
+      await refresh();
+      setToast(`Mesa ${table.number} adicionada`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao adicionar mesa");
+    } finally {
+      setAddingTable(false);
+    }
+  }, [waiterName, refresh]);
 
   const handleOpenTable = useCallback(async () => {
     if (!selectedTable || !waiterName.trim()) return;
@@ -522,6 +548,13 @@ export function WaiterTableFlow({
     [selectedTable, refresh]
   );
 
+  if (!state && stateLoading) {
+    if (nested) {
+      return <StaffLoader label="A carregar mesas…" compact />;
+    }
+    return <StaffLoader label="A carregar mesas…" fullScreen />;
+  }
+
   if (screen === "editar" && customizeItem && editingItem) {
     return (
       <>
@@ -772,6 +805,8 @@ export function WaiterTableFlow({
         waiterName={waiterName}
         onSetWaiterName={setWaiterName}
         onSelectTable={handleSelectTable}
+        onAddTable={() => void handleAddTable()}
+        addingTable={addingTable}
         showPortalLink={showPortalLink}
         portalHref={portalHref}
         portalLabel={portalLabel}

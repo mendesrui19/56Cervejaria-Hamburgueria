@@ -13,6 +13,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   request_bill: "Pedir conta",
   reopen_round: "Nova ronda",
   clear_table: "Fechar mesa",
+  add_table: "Nova mesa",
   loyalty_redeem: "App 56",
 };
 
@@ -26,6 +27,7 @@ const ACTION_COLORS: Record<AuditAction, string> = {
   request_bill: "bg-amber-100 text-amber-900 border-amber-200",
   reopen_round: "bg-sky-100 text-sky-900 border-sky-200",
   clear_table: "bg-stone-100 text-stone-800 border-stone-200",
+  add_table: "bg-emerald-100 text-emerald-900 border-emerald-200",
   loyalty_redeem: "bg-teal-100 text-teal-800 border-teal-200",
 };
 

@@ -4,7 +4,11 @@ import { useState } from "react";
 import { AdminLiveBar } from "@/components/admin/AdminLiveBar";
 import { exportKpisCsv } from "@/lib/admin-export";
 import { formatPrice } from "@/lib/menu";
-import { getPreviousPeriodLabel, parseDateParam } from "@/lib/period";
+import {
+  countElapsedDaysInPeriod,
+  getPreviousPeriodShortLabel,
+  parseDateParam,
+} from "@/lib/period";
 import type { AdminDailyRow, AdminHourlyRow, AdminKPIs } from "@/lib/types";
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -14,32 +18,19 @@ const PAYMENT_LABELS: Record<string, string> = {
   misto: "Misto",
 };
 
-function KpiCard({
-  label,
-  value,
-  hint,
-  highlight,
+function SectionTitle({
+  children,
+  action,
 }: {
-  label: string;
-  value: string;
-  hint?: string;
-  highlight?: boolean;
+  children: React.ReactNode;
+  action?: React.ReactNode;
 }) {
   return (
-    <div
-      className={`rounded-2xl border p-4 ${
-        highlight
-          ? "border-brand-gold/40 bg-brand-gold/5"
-          : "border-brand-gold/15 bg-brand-card"
-      }`}
-    >
-      <p className="text-[10px] uppercase tracking-widest text-brand-muted font-bold">
-        {label}
-      </p>
-      <p className="text-2xl lg:text-3xl font-black text-brand-gold mt-1 tabular-nums">
-        {value}
-      </p>
-      {hint ? <p className="text-xs text-brand-muted mt-1">{hint}</p> : null}
+    <div className="flex items-end justify-between gap-3 mb-3">
+      <h2 className="text-[11px] uppercase tracking-widest font-bold text-brand-muted">
+        {children}
+      </h2>
+      {action}
     </div>
   );
 }
@@ -61,7 +52,7 @@ function ChangeBadge({
 
   return (
     <span
-      className={`inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-bold ${
+      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold ${
         positive
           ? "bg-emerald-100 text-emerald-800"
           : negative
@@ -92,21 +83,17 @@ function BarChart({
 
   if (rows.length === 0 || rows.every((r) => r[valueKey] === 0)) {
     return (
-      <div className="card">
-        <h3 className="text-sm font-bold text-brand-gold mb-3 uppercase tracking-wide">
-          {title}
-        </h3>
+      <div className="rounded-2xl border border-brand-line bg-white/70 p-4">
+        <h3 className="text-sm font-bold text-brand-gold mb-2">{title}</h3>
         <p className="text-brand-muted text-sm">{emptyLabel}</p>
       </div>
     );
   }
 
   return (
-    <div className="card">
-      <h3 className="text-sm font-bold text-brand-gold mb-4 uppercase tracking-wide">
-        {title}
-      </h3>
-      <div className="flex items-end gap-1 sm:gap-1.5 h-36">
+    <div className="rounded-2xl border border-brand-line bg-white/70 p-4">
+      <h3 className="text-sm font-bold text-brand-gold mb-3">{title}</h3>
+      <div className="flex items-end gap-1 sm:gap-1.5 h-32">
         {rows.map((row) => {
           const value = row[valueKey];
           const height = Math.max(4, (value / max) * 100);
@@ -116,7 +103,7 @@ function BarChart({
               className="flex-1 min-w-0 flex flex-col items-center gap-1"
               title={`${row.label}: ${valueKey === "revenue" ? formatPrice(value) : value}`}
             >
-              <div className="w-full flex items-end justify-center h-28">
+              <div className="w-full flex items-end justify-center h-24">
                 <div
                   className="w-full max-w-[28px] rounded-t-md bg-brand-gold/80"
                   style={{ height: `${height}%` }}
@@ -141,254 +128,428 @@ function formatMinutes(minutes: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+function MoneyRow({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1.5">
+      <span className={`text-sm ${strong ? "font-bold text-brand-gold" : "text-brand-muted"}`}>
+        {label}
+      </span>
+      <span
+        className={`tabular-nums shrink-0 ${
+          strong
+            ? "text-lg font-black text-brand-gold"
+            : "text-sm font-semibold text-brand-gold"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 interface AdminReportsProps {
   kpis: AdminKPIs;
   anchorDate: string;
   showLive?: boolean;
+  onOpenOperations?: () => void;
 }
 
 export function AdminReports({
   kpis,
   anchorDate,
   showLive = false,
+  onOpenOperations,
 }: AdminReportsProps) {
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [tablesOpen, setTablesOpen] = useState(false);
   const reference = parseDateParam(anchorDate);
-  const prevLabel = getPreviousPeriodLabel(kpis.period, reference);
+  const prevShort = getPreviousPeriodShortLabel(kpis.period);
   const { comparison } = kpis;
   const topItems = kpis.topItems.slice(0, 5);
+  const topWaiters = kpis.byWaiter.slice(0, 5);
+  const hasComparison =
+    comparison.previousRevenue > 0 || comparison.previousOrders > 0;
 
   const chartIsDay = kpis.period === "day";
   const chartRows = chartIsDay
     ? (kpis.byHour as AdminHourlyRow[])
     : (kpis.byDay as AdminDailyRow[]);
 
+  const elapsedDays = countElapsedDaysInPeriod(kpis.period, reference);
+  const avgPerDay = kpis.revenue / elapsedDays;
+  const bestDay =
+    !chartIsDay && chartRows.length > 0
+      ? [...(chartRows as AdminDailyRow[])].sort((a, b) => b.revenue - a.revenue)[0]
+      : null;
+  const isPeriodView = kpis.period === "week" || kpis.period === "month";
+  const isPastClose = !showLive;
+  const now = new Date();
+  const isCurrentMonth =
+    kpis.period === "month" &&
+    reference.getFullYear() === now.getFullYear() &&
+    reference.getMonth() === now.getMonth();
+  const periodCloseTitle =
+    kpis.period === "month"
+      ? isCurrentMonth
+        ? "Resumo do mês"
+        : "Fecho do mês"
+      : kpis.period === "week"
+        ? "Resumo da semana"
+        : "Fecho do dia";
+
   return (
-    <div className="space-y-5">
-      {showLive ? <AdminLiveBar /> : null}
+    <div className="space-y-6">
+      {showLive ? <AdminLiveBar onOpenOperations={onOpenOperations} /> : null}
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-brand-gold">{kpis.periodLabel}</p>
-          {(comparison.previousRevenue > 0 || comparison.previousOrders > 0) && (
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className="text-xs text-brand-muted">vs {prevLabel.toLowerCase()}</span>
-              <ChangeBadge
-                value={comparison.revenueChange}
-                pct={comparison.revenueChangePct}
-                suffix="€"
-              />
-              <ChangeBadge
-                value={comparison.ordersChange}
-                pct={0}
-                suffix={` conta${Math.abs(comparison.ordersChange) !== 1 ? "s" : ""}`}
-              />
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => exportKpisCsv(kpis)}
-          className="btn-secondary btn-sm shrink-0"
-        >
-          CSV
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="Faturação" value={formatPrice(kpis.revenue)} highlight />
-        <KpiCard label="Contas" value={String(kpis.orderCount)} />
-        <KpiCard
-          label="Ticket médio"
-          value={formatPrice(kpis.avgTicket)}
-          hint={kpis.tips > 0 ? `Gorjetas ${formatPrice(kpis.tips)}` : undefined}
-        />
-        <KpiCard
-          label="Tempo mesa"
-          value={formatMinutes(kpis.avgTableMinutes)}
-          hint={kpis.orderCount > 0 ? "Abertura → pagamento" : undefined}
-        />
-      </div>
-
-      {kpis.cancelledItems.count > 0 && (
-        <div className="rounded-2xl border border-amber-300/50 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <span className="font-bold">{kpis.cancelledItems.count}</span>{" "}
-          {kpis.cancelledItems.count === 1 ? "item cancelado" : "itens cancelados"}
-          {" · "}
-          <span className="font-bold">{formatPrice(kpis.cancelledItems.value)}</span>
-          {" · "}
-          taxa <span className="font-bold">{(kpis.cancelRate * 100).toFixed(1)}%</span>
-        </div>
-      )}
-
-      {chartRows.length > 0 && (
-        <BarChart
-          title={chartIsDay ? "Picos do dia" : "Faturação por dia"}
-          rows={chartRows}
-          valueKey="revenue"
-          emptyLabel="Sem vendas neste período"
-        />
-      )}
-
-      <div className="grid lg:grid-cols-2 gap-4">
-        <div className="card">
-          <h3 className="text-sm font-bold text-brand-gold mb-3 uppercase tracking-wide">
-            Caixa
-          </h3>
-          {kpis.byPayment.length === 0 ? (
-            <p className="text-brand-muted text-sm">Sem pagamentos</p>
-          ) : (
-            <div className="space-y-2">
-              {kpis.byPayment.map((row) => (
-                <div
-                  key={row.method}
-                  className="flex justify-between gap-3 text-sm"
-                >
-                  <span className="text-brand-muted">
-                    {PAYMENT_LABELS[row.method] ?? row.method} · {row.count}
-                  </span>
-                  <span className="text-brand-gold font-semibold tabular-nums">
-                    {formatPrice(row.amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {(kpis.payments.mistoCash > 0 || kpis.payments.mistoCard > 0) && (
-            <div className="mt-3 pt-3 border-t border-brand-gold/10 space-y-1.5 text-xs text-brand-muted">
-              {kpis.payments.mistoCash > 0 && (
-                <div className="flex justify-between gap-3">
-                  <span>Misto · dinheiro</span>
-                  <span className="tabular-nums font-semibold">
-                    {formatPrice(kpis.payments.mistoCash)}
-                  </span>
-                </div>
-              )}
-              {kpis.payments.mistoCard > 0 && (
-                <div className="flex justify-between gap-3">
-                  <span>Misto · cartão</span>
-                  <span className="tabular-nums font-semibold">
-                    {formatPrice(kpis.payments.mistoCard)}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-          {kpis.payments.cashInDrawer > 0 && (
-            <div className="mt-4 pt-3 border-t border-brand-gold/10 flex justify-between gap-3">
-              <span className="text-sm font-bold text-brand-muted">Na gaveta</span>
-              <span className="text-lg font-black text-brand-gold tabular-nums">
-                {formatPrice(kpis.payments.cashInDrawer)}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <h3 className="text-sm font-bold text-brand-gold mb-3 uppercase tracking-wide">
-            Top produtos
-          </h3>
-          {topItems.length === 0 ? (
-            <p className="text-brand-muted text-sm">Sem dados</p>
-          ) : (
-            <div className="space-y-2">
-              {topItems.map((item, index) => (
-                <div
-                  key={item.name}
-                  className="flex justify-between gap-3 text-sm"
-                >
-                  <span className="text-brand-muted truncate">
-                    <span className="text-brand-gold/50 font-bold mr-1.5">
-                      {index + 1}.
-                    </span>
-                    {item.name}
-                  </span>
-                  <span className="text-brand-gold font-semibold shrink-0 tabular-nums">
-                    {item.quantity} · {formatPrice(item.revenue)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-brand-line bg-white/60 overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setDetailOpen((open) => !open)}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left touch-manipulation"
-        >
-          <span className="text-sm font-bold text-brand-gold">Detalhe</span>
-          <span className="text-xs font-semibold text-brand-muted uppercase tracking-wide">
-            {detailOpen ? "Fechar" : "Empregados · Mesas"}
-          </span>
-        </button>
-
-        {detailOpen && (
-          <div className="px-4 pb-4 space-y-4 border-t border-brand-line pt-4">
+      {isPastClose ? (
+        <section className="rounded-2xl border border-brand-line bg-white/70 px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-xs font-bold text-brand-muted uppercase tracking-wide mb-2">
-                Empregados
-              </h3>
-              {kpis.byWaiter.length === 0 ? (
-                <p className="text-brand-muted text-sm">Sem dados</p>
+              <p className="text-[11px] uppercase tracking-widest font-bold text-brand-muted">
+                {periodCloseTitle}
+              </p>
+              <p className="text-sm font-bold text-brand-gold mt-0.5 capitalize">
+                {kpis.periodLabel}
+              </p>
+            </div>
+            {hasComparison ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-brand-muted">vs {prevShort}</span>
+                <ChangeBadge
+                  value={comparison.revenueChange}
+                  pct={comparison.revenueChangePct}
+                  suffix="€"
+                />
+                <ChangeBadge
+                  value={comparison.ordersChange}
+                  pct={0}
+                  suffix={` conta${Math.abs(comparison.ordersChange) !== 1 ? "s" : ""}`}
+                />
+              </div>
+            ) : null}
+          </div>
+          {isPeriodView ? (
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-brand-line pt-3">
+              <div>
+                <p className="text-lg font-black text-brand-gold tabular-nums">
+                  {formatPrice(avgPerDay)}
+                </p>
+                <p className="text-[11px] text-brand-muted font-semibold">
+                  Média / dia · {elapsedDays} dias
+                </p>
+              </div>
+              {bestDay && bestDay.revenue > 0 ? (
+                <div>
+                  <p className="text-lg font-black text-brand-gold tabular-nums">
+                    {formatPrice(bestDay.revenue)}
+                  </p>
+                  <p className="text-[11px] text-brand-muted font-semibold">
+                    Melhor dia · {bestDay.label}
+                  </p>
+                </div>
+              ) : null}
+              <div>
+                <p className="text-lg font-black text-brand-gold tabular-nums">
+                  {comparison.previousRevenue > 0
+                    ? formatPrice(comparison.previousRevenue)
+                    : "—"}
+                </p>
+                <p className="text-[11px] text-brand-muted font-semibold">
+                  Período anterior
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* 1. Dinheiro */}
+      <section>
+        <SectionTitle
+          action={
+            <button
+              type="button"
+              onClick={() => exportKpisCsv(kpis)}
+              className="btn-secondary btn-sm shrink-0"
+            >
+              CSV
+            </button>
+          }
+        >
+          Dinheiro
+        </SectionTitle>
+
+        {showLive && hasComparison ? (
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="text-xs text-brand-muted">vs {prevShort}</span>
+            <ChangeBadge
+              value={comparison.revenueChange}
+              pct={comparison.revenueChangePct}
+              suffix="€"
+            />
+            <ChangeBadge
+              value={comparison.ordersChange}
+              pct={0}
+              suffix={` conta${Math.abs(comparison.ordersChange) !== 1 ? "s" : ""}`}
+            />
+          </div>
+        ) : null}
+
+        <div className="rounded-2xl border border-brand-gold/30 bg-brand-gold/[0.04] p-4 sm:p-5">
+          <div className="grid sm:grid-cols-[1.2fr_1fr] gap-5">
+            <div>
+              <p className="text-[11px] uppercase tracking-widest font-bold text-brand-muted">
+                Faturação cobrada
+              </p>
+              <p className="text-4xl sm:text-5xl font-black text-brand-gold tabular-nums mt-1 leading-none">
+                {formatPrice(kpis.revenue)}
+              </p>
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-xl font-black text-brand-gold tabular-nums">
+                    {kpis.orderCount}
+                  </p>
+                  <p className="text-[11px] text-brand-muted font-semibold">Contas</p>
+                </div>
+                <div>
+                  <p className="text-xl font-black text-brand-gold tabular-nums">
+                    {formatPrice(kpis.avgTicket)}
+                  </p>
+                  <p className="text-[11px] text-brand-muted font-semibold">Ticket méd.</p>
+                </div>
+                <div>
+                  <p className="text-xl font-black text-brand-gold tabular-nums">
+                    {kpis.itemsSold}
+                  </p>
+                  <p className="text-[11px] text-brand-muted font-semibold">Itens</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-brand-line/80 bg-white/70 px-3.5 py-3">
+              <p className="text-[11px] uppercase tracking-widest font-bold text-brand-muted mb-1">
+                Caixa
+              </p>
+              {kpis.byPayment.length === 0 ? (
+                <p className="text-sm text-brand-muted py-2">Sem pagamentos</p>
               ) : (
-                <div className="space-y-2">
-                  {kpis.byWaiter.map((row, index) => (
-                    <div
-                      key={row.name}
-                      className="flex items-start justify-between gap-3 text-sm rounded-xl bg-brand-surface/60 px-3 py-2.5"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-brand-gold font-bold truncate">
-                          {index < 3 && (
-                            <span className="text-brand-muted font-semibold mr-1.5">
-                              {index + 1}.º
-                            </span>
-                          )}
-                          {row.name}
-                        </p>
-                        <p className="text-xs text-brand-muted mt-0.5">
-                          {row.orders} conta{row.orders !== 1 ? "s" : ""} · ticket{" "}
-                          {formatPrice(row.avgTicket)}
-                          {row.tips > 0
-                            ? ` · gorjetas ${formatPrice(row.tips)}`
-                            : ""}
-                        </p>
-                      </div>
-                      <span className="text-brand-gold font-semibold shrink-0 tabular-nums">
-                        {formatPrice(row.revenue)}
-                      </span>
-                    </div>
+                <div className="divide-y divide-brand-line/60">
+                  {kpis.byPayment.map((row) => (
+                    <MoneyRow
+                      key={row.method}
+                      label={`${PAYMENT_LABELS[row.method] ?? row.method} · ${row.count}`}
+                      value={formatPrice(row.amount)}
+                    />
                   ))}
                 </div>
               )}
+              {(kpis.payments.mistoCash > 0 || kpis.payments.mistoCard > 0) && (
+                <div className="mt-2 pt-2 border-t border-brand-line/60 space-y-0.5 text-xs text-brand-muted">
+                  {kpis.payments.mistoCash > 0 ? (
+                    <div className="flex justify-between gap-2">
+                      <span>Misto · dinheiro</span>
+                      <span className="tabular-nums font-semibold">
+                        {formatPrice(kpis.payments.mistoCash)}
+                      </span>
+                    </div>
+                  ) : null}
+                  {kpis.payments.mistoCard > 0 ? (
+                    <div className="flex justify-between gap-2">
+                      <span>Misto · cartão</span>
+                      <span className="tabular-nums font-semibold">
+                        {formatPrice(kpis.payments.mistoCard)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+              {kpis.payments.cashInDrawer > 0 ? (
+                <div className="mt-3 pt-2 border-t border-brand-gold/20">
+                  <MoneyRow
+                    label="Na gaveta"
+                    value={formatPrice(kpis.payments.cashInDrawer)}
+                    strong
+                  />
+                </div>
+              ) : null}
+              {kpis.tips > 0 ? (
+                <div className="mt-1">
+                  <MoneyRow label="Gorjetas" value={formatPrice(kpis.tips)} />
+                </div>
+              ) : null}
             </div>
+          </div>
+        </div>
+      </section>
 
-            <div>
-              <h3 className="text-xs font-bold text-brand-muted uppercase tracking-wide mb-2">
-                Por mesa
-              </h3>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-56 overflow-y-auto scrollbar-thin">
-                {kpis.byTable.map((row) => (
+      {/* 2. Serviço / excepções */}
+      <section>
+        <SectionTitle>Serviço</SectionTitle>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-brand-line bg-white/70 px-4 py-3">
+            <p className="text-[11px] uppercase tracking-widest font-bold text-brand-muted">
+              Tempo médio mesa
+            </p>
+            <p className="text-2xl font-black text-brand-gold tabular-nums mt-1">
+              {formatMinutes(kpis.avgTableMinutes)}
+            </p>
+            <p className="text-xs text-brand-muted mt-1">Abertura → pagamento</p>
+          </div>
+          <div
+            className={`rounded-2xl border px-4 py-3 ${
+              kpis.cancelledItems.count > 0
+                ? "border-amber-300/60 bg-amber-50"
+                : "border-brand-line bg-white/70"
+            }`}
+          >
+            <p
+              className={`text-[11px] uppercase tracking-widest font-bold ${
+                kpis.cancelledItems.count > 0 ? "text-amber-900/70" : "text-brand-muted"
+              }`}
+            >
+              Cancelamentos
+            </p>
+            {kpis.cancelledItems.count > 0 ? (
+              <>
+                <p className="text-2xl font-black text-amber-950 tabular-nums mt-1">
+                  {kpis.cancelledItems.count}
+                  <span className="text-base font-bold ml-1.5">
+                    · {formatPrice(kpis.cancelledItems.value)}
+                  </span>
+                </p>
+                <p className="text-xs text-amber-900/80 mt-1 font-semibold">
+                  Taxa {(kpis.cancelRate * 100).toFixed(1)}%
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-black text-brand-gold tabular-nums mt-1">0</p>
+                <p className="text-xs text-brand-muted mt-1">Nenhum neste período</p>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Ritmo */}
+      {chartRows.length > 0 ? (
+        <section>
+          <SectionTitle>Ritmo</SectionTitle>
+          <BarChart
+            title={chartIsDay ? "Por hora" : "Por dia"}
+            rows={chartRows}
+            valueKey="revenue"
+            emptyLabel="Sem vendas neste período"
+          />
+        </section>
+      ) : null}
+
+      {/* 4. Quem / o quê */}
+      <section>
+        <SectionTitle>Vendas</SectionTitle>
+        <div className="grid lg:grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-brand-line bg-white/70 p-4">
+            <h3 className="text-sm font-bold text-brand-gold mb-3">Produtos</h3>
+            {topItems.length === 0 ? (
+              <p className="text-brand-muted text-sm">Sem dados</p>
+            ) : (
+              <div className="space-y-2">
+                {topItems.map((item, index) => (
                   <div
-                    key={row.tableNumber}
-                    className="flex justify-between gap-3 text-sm rounded-xl bg-brand-dark/40 px-3 py-2"
+                    key={item.name}
+                    className="flex justify-between gap-3 text-sm"
                   >
-                    <span className="text-brand-muted">
-                      Mesa {row.tableNumber} · {row.orders}
+                    <span className="text-brand-muted truncate">
+                      <span className="text-brand-gold/45 font-bold mr-1.5">
+                        {index + 1}.
+                      </span>
+                      {item.name}
                     </span>
-                    <span className="text-brand-gold font-semibold tabular-nums">
+                    <span className="text-brand-gold font-semibold shrink-0 tabular-nums">
+                      {item.quantity} · {formatPrice(item.revenue)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-brand-line bg-white/70 p-4">
+            <h3 className="text-sm font-bold text-brand-gold mb-3">Empregados</h3>
+            {topWaiters.length === 0 ? (
+              <p className="text-brand-muted text-sm">Sem dados</p>
+            ) : (
+              <div className="space-y-2.5">
+                {topWaiters.map((row, index) => (
+                  <div
+                    key={row.name}
+                    className="flex items-start justify-between gap-3 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-brand-gold font-bold truncate">
+                        <span className="text-brand-gold/45 font-bold mr-1.5">
+                          {index + 1}.
+                        </span>
+                        {row.name}
+                      </p>
+                      <p className="text-xs text-brand-muted mt-0.5">
+                        {row.orders} conta{row.orders !== 1 ? "s" : ""} · ticket{" "}
+                        {formatPrice(row.avgTicket)}
+                        {row.tips > 0 ? ` · gorj. ${formatPrice(row.tips)}` : ""}
+                      </p>
+                    </div>
+                    <span className="text-brand-gold font-semibold shrink-0 tabular-nums">
                       {formatPrice(row.revenue)}
                     </span>
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Mesas — secundário */}
+      <section className="rounded-2xl border border-brand-line bg-white/50 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setTablesOpen((open) => !open)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left touch-manipulation"
+        >
+          <span className="text-[11px] uppercase tracking-widest font-bold text-brand-muted">
+            Por mesa
+          </span>
+          <span className="text-xs font-semibold text-brand-muted">
+            {tablesOpen ? "Fechar" : `${kpis.byTable.length} mesas`}
+          </span>
+        </button>
+        {tablesOpen ? (
+          <div className="px-4 pb-4 border-t border-brand-line pt-3">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto scrollbar-thin">
+              {kpis.byTable.map((row) => (
+                <div
+                  key={row.tableNumber}
+                  className="flex justify-between gap-3 text-sm rounded-lg bg-brand-surface/70 px-3 py-2"
+                >
+                  <span className="text-brand-muted">
+                    Mesa {row.tableNumber} · {row.orders}
+                  </span>
+                  <span className="text-brand-gold font-semibold tabular-nums">
+                    {formatPrice(row.revenue)}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        )}
-      </div>
+        ) : null}
+      </section>
     </div>
   );
 }

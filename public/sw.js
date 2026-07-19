@@ -1,5 +1,9 @@
-const CACHE = "cs56-staff-v1";
-const PRECACHE = ["/favicon.png", "/apple-icon.png"];
+const CACHE = "cs56-staff-v2";
+const PRECACHE = [
+  "/favicon.png",
+  "/apple-icon.png",
+  "/manifest-sistema.webmanifest",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -15,7 +19,9 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))
+        Promise.all(
+          keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))
+        )
       )
       .then(() => self.clients.claim())
   );
@@ -29,11 +35,34 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
 
+  /* Navegação: rede primeiro — POS precisa de dados frescos */
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(async () => {
         const cached = await caches.match("/favicon.png");
         return cached ?? Response.error();
+      })
+    );
+    return;
+  }
+
+  /* Assets estáticos leves: cache depois rede */
+  if (
+    url.pathname === "/manifest-sistema.webmanifest" ||
+    url.pathname.endsWith(".png") ||
+    url.pathname.endsWith(".jpg") ||
+    url.pathname.endsWith(".webp")
+  ) {
+    event.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        const network = fetch(request)
+          .then((response) => {
+            if (response.ok) void cache.put(request, response.clone());
+            return response;
+          })
+          .catch(() => cached);
+        return cached || network;
       })
     );
   }

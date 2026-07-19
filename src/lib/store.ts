@@ -57,6 +57,8 @@ import {
   assertMistoSplit,
   assertPaymentMethod,
   assertTableNumber,
+  BALCAO_TABLE_NUMBER,
+  MAX_TABLE_NUMBER,
   normalizeTip,
   TABLE_COUNT,
 } from "./validators";
@@ -331,6 +333,44 @@ export async function getState(): Promise<RestaurantState> {
     ...state,
     orders: state.orders.filter((order) => !order.paidAt),
   };
+}
+
+/** Cria a próxima mesa de sala livre (não balcão). */
+export async function addDiningTable(actorName?: string): Promise<Table> {
+  await ensureTablesExist();
+  const db = getDb();
+  const existing = await db
+    .select({ number: restaurantTables.number })
+    .from(restaurantTables);
+  const used = new Set(existing.map((row) => row.number));
+
+  let next = 1;
+  while (
+    next <= MAX_TABLE_NUMBER &&
+    (next === BALCAO_TABLE_NUMBER || used.has(next))
+  ) {
+    next += 1;
+  }
+
+  if (next > MAX_TABLE_NUMBER) {
+    throw new Error(`Limite de mesas atingido (${MAX_TABLE_NUMBER})`);
+  }
+
+  const [created] = await db
+    .insert(restaurantTables)
+    .values({ number: next, status: "livre" })
+    .returning();
+
+  if (!created) throw new Error("Não foi possível criar a mesa");
+
+  await recordAuditLog({
+    action: "add_table",
+    actor: actorName?.trim() || "Staff",
+    tableNumber: next,
+    detail: `Mesa ${next} adicionada`,
+  });
+  await touchRestaurantUpdated();
+  return mapTable(created);
 }
 
 export async function openTable(
